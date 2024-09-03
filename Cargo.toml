@@ -1,0 +1,15 @@
+[package]
+name = "Neuroxide"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "neuroxide"
+path = "src/neuroxide/lib.rs"
+
+[[bin]]
+name = "neuroxide_main"
+path = "src/bin.rs"
+
+[dependencies]
+petgraph = "0.6.5"
