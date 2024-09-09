@@ -13,3 +13,4 @@ path = "src/bin.rs"
 
 [dependencies]
 petgraph = "0.6.5"
+rand = "0.8.5"
