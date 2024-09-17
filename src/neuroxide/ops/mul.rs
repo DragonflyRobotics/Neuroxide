@@ -25,18 +25,12 @@ where
         // println!("Backward called on AddOp");
         // println!("Inputs: {:?}", inputs);
         // println!("Grad: {:?}", grad);
-        let mut grad_data = vec![T::default(); inputs[0].data.len()];
-        if inputs[0].id == inputs[1].id { //c = a + a => dc/da = 2
-            for i in 0..inputs[0].data.len() {
-                grad_data[i] = T::from(2).unwrap(); 
-            }
-            Tensor::new(db, grad_data, inputs[0].shape.clone(), inputs[0].device.clone(), inputs[0].requires_grad)
-        } else {
-            for i in 0..inputs[0].data.len() {
-                grad_data[i] = T::from(1).unwrap(); 
-            }
-            Tensor::new(db, grad_data, inputs[0].shape.clone(), inputs[0].device.clone(), inputs[0].requires_grad)
-        }
+
+        //get index of grad in inputs without for loop
+        let grad_index = inputs.iter().position(|&x| x.id == grad.unwrap().id).unwrap();
+
+        
+        return inputs[1 - grad_index].clone(); 
     }
 
     fn clone_box(&self) -> Box<dyn Operation<T>> {

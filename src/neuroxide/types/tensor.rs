@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{ops::{add::AddOp, op_generic::{Operation, Ops}}, types::device::Device};
+use crate::{ops::{add::AddOp, mul::MulOp, op_generic::{Operation, Ops}}, types::device::Device};
 use num::NumCast;
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -46,11 +46,14 @@ where
             Ops::AddEnum => {
                 AddOp.backward(db, inputs, Some(dx))
             },
+            Ops::MulEnum => {
+                MulOp.backward(db, inputs, Some(dx))
+            },
             _ => panic!("Operation not implemented")
         }
     }
 
-    pub fn backward(&self, db: &mut TensorDB<T>, dx: Option<Vec<i32>>) {
+    pub fn backward(&self, db: &mut TensorDB<T>, dx: Option<Vec<i32>>) -> HashMap<i32, Tensor<T>> {
         println!("Backward called on tensor: {:?}", self.id);
         let mut all_leaves = Vec::new();
         match dx {
@@ -73,12 +76,12 @@ where
             let path = algo::all_simple_paths::<Vec<_>, _>(&self.op_chain, self.id, leaf, 0, None).collect::<Vec<_>>();
             paths.insert(leaf, path);
         }
-        println!("All paths: {:?}", paths);
+        // println!("All paths: {:?}", paths);
 
         let mut grad = HashMap::new();
 
         for leaf in all_leaves.clone() {
-            let data = vec![T::from(1); self.data.len()];
+            let data = vec![T::from(1).unwrap(); self.data.len()];
             let new_tensor = Tensor {
                 id: self.id,
                 data: data,
@@ -92,27 +95,28 @@ where
             grad.insert(leaf, new_tensor);
         }
 
-        for leaf in all_leaves {
+        for leaf in all_leaves.clone() {
             let path = &paths[&leaf];
             let mut arr: Vec<Tensor<T>> = Vec::new();
             for p in path {
-                let temp = grad[&leaf].clone();
+                let mut temp = grad[&leaf].clone();
                 for i in 0..p.len() - 1 {
                     // println!("d{:?}/d{:?}", p[i], p[i + 1]);
                     let neighbor = self.op_chain.neighbors_directed(p[i], Outgoing).collect::<Vec<_>>();
                     // println!("{:?} = {:?} + {:?}", p[i], neighbor[0], neighbor[1]);
-                    println!("*");
                     let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                     let output = self.match_ops(&mut db.clone(), db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
-                    println!("{:?} {:?}", &leaf, output);
-                    temp *= output;
+                    temp = temp * output;
                 }
                 arr.push(temp);
-                println!("+");
             }
-            println!("===");
+            let mut sum = arr[0].clone();
+            for i in 1..arr.len() {
+                sum = sum + arr[i].clone();
+            }
+            grad.get_mut(&leaf).unwrap().data = sum.data;
         }
-
+        grad
     }
 
     pub fn clear_graph(&mut self) {
