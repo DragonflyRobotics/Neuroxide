@@ -12,5 +12,6 @@ name = "neuroxide_main"
 path = "src/bin.rs"
 
 [dependencies]
+num = "0.4.3"
 petgraph = "0.6.5"
 rand = "0.8.5"

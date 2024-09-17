@@ -7,15 +7,15 @@ use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
 
 #[derive(Debug, Clone)]
-pub struct AddOp;
+pub struct MulOp;
 
-impl<T> Operation<T> for AddOp
+impl<T> Operation<T> for MulOp
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
     fn forward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
-        let t = inputs[0].clone() + inputs[1].clone();
+        let t = inputs[0].clone() * inputs[1].clone();
         db.insert(t.clone());
         t
     }
@@ -40,22 +40,22 @@ where
     }
 
     fn clone_box(&self) -> Box<dyn Operation<T>> {
-        Box::new(AddOp)
+        Box::new(MulOp)
     }
 }
 
 //implement add for tensor
 
-impl<T> std::ops::Add for Tensor<T>
+impl<T> std::ops::Mul for Tensor<T>
 where
-    T: std::ops::Add<Output = T> + Copy + Default,
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default,
 {
     type Output = Tensor<T>;
 
-    fn add(self, other: Tensor<T>) -> Tensor<T> {
+    fn mul(self, other: Tensor<T>) -> Tensor<T> {
         assert!(self.shape == other.shape);
         assert!(self.device == other.device);
-        let result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();
+        let result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a * *b).collect();
 
         //merge graphs
         let mut result_graph = GraphMap::new();
@@ -88,7 +88,7 @@ where
             data: result,
             shape: self.shape.clone(),
             device: self.device,
-            op: Ops::AddEnum,
+            op: Ops::MulEnum,
             requires_grad: self.requires_grad || other.requires_grad,
             op_chain: result_graph,
             op_head: result_id

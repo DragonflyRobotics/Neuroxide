@@ -1,39 +1,56 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-use crate::types::device::Device;
-use petgraph::{algo, prelude::GraphMap, Directed, Direction::{Incoming, Outgoing}};
+use crate::{ops::{add::AddOp, op_generic::{Operation, Ops}}, types::device::Device};
+use num::NumCast;
+use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
+
+use super::tensordb::TensorDB;
 
 #[derive(Debug, Clone)]
 pub struct Tensor<T> {
     pub id: i32,
-    data: Vec<T>,
-    shape: Vec<usize>,
-    device: Device,
-    grad: Option<GraphMap<i32, i32, Directed>>,
-    requires_grad: bool,
+    pub data: Vec<T>,
+    pub shape: Vec<usize>,
+    pub device: Device,
+    pub op: Ops,
+    pub requires_grad: bool,
     pub op_chain: GraphMap<i32, i32, Directed>,
     pub op_head: i32
 }
 
-impl<T> Tensor<T> {
-    pub fn new(data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+impl<T> Tensor<T> 
+where
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
+{
+    pub fn new(db: &mut TensorDB<T>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         let mut graph = GraphMap::new();
         let id = make_node_uid();
         graph.add_node(id);
-        Tensor {
+        let t = Tensor {
             id,
             data,
             shape,
             device,
-            grad: None,
+            op: Ops::TensorEnum,
             requires_grad,
             op_chain: graph,
             op_head: id
+        };
+        db.insert(t.clone());
+        t
+    }
+
+    fn match_ops(&self, db: &mut TensorDB<T>, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+        match d.op {
+            Ops::AddEnum => {
+                AddOp.backward(db, inputs, Some(dx))
+            },
+            _ => panic!("Operation not implemented")
         }
     }
 
-    pub fn backward(&self, dx: Option<Vec<i32>>) {
+    pub fn backward(&self, db: &mut TensorDB<T>, dx: Option<Vec<i32>>) {
         println!("Backward called on tensor: {:?}", self.id);
         let mut all_leaves = Vec::new();
         match dx {
@@ -52,11 +69,49 @@ impl<T> Tensor<T> {
             }
         }
         let mut paths = HashMap::new(); 
-        for leaf in all_leaves {
+        for leaf in all_leaves.clone() {
             let path = algo::all_simple_paths::<Vec<_>, _>(&self.op_chain, self.id, leaf, 0, None).collect::<Vec<_>>();
             paths.insert(leaf, path);
         }
         println!("All paths: {:?}", paths);
+
+        let mut grad = HashMap::new();
+
+        for leaf in all_leaves.clone() {
+            let data = vec![T::from(1); self.data.len()];
+            let new_tensor = Tensor {
+                id: self.id,
+                data: data,
+                shape: self.shape.clone(),
+                device: self.device.clone(),
+                op: self.op.clone(),
+                requires_grad: self.requires_grad,
+                op_chain: self.op_chain.clone(),
+                op_head: self.id,
+            };
+            grad.insert(leaf, new_tensor);
+        }
+
+        for leaf in all_leaves {
+            let path = &paths[&leaf];
+            let mut arr: Vec<Tensor<T>> = Vec::new();
+            for p in path {
+                let temp = grad[&leaf].clone();
+                for i in 0..p.len() - 1 {
+                    // println!("d{:?}/d{:?}", p[i], p[i + 1]);
+                    let neighbor = self.op_chain.neighbors_directed(p[i], Outgoing).collect::<Vec<_>>();
+                    // println!("{:?} = {:?} + {:?}", p[i], neighbor[0], neighbor[1]);
+                    println!("*");
+                    let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
+                    let output = self.match_ops(&mut db.clone(), db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                    println!("{:?} {:?}", &leaf, output);
+                    temp *= output;
+                }
+                arr.push(temp);
+                println!("+");
+            }
+            println!("===");
+        }
 
     }
 
@@ -96,59 +151,5 @@ impl<T: std::fmt::Debug> std::fmt::Display for Tensor<T> {
         print_recursive(f, &self.shape, &self.data, &mut idx, 0)?;
         write!(f, "\n")?; 
         Ok(())
-    }
-}
-
-
-
-//implement add for tensor
-
-impl<T> std::ops::Add for Tensor<T>
-where
-    T: std::ops::Add<Output = T> + Copy + Default,
-{
-    type Output = Tensor<T>;
-
-    fn add(self, other: Tensor<T>) -> Tensor<T> {
-        assert!(self.shape == other.shape);
-        assert!(self.device == other.device);
-        let result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();
-
-        //merge graphs
-        let mut result_graph = GraphMap::new();
-        let self_graph = &self.op_chain;
-        let other_graph = &other.op_chain;
-        let self_nodes = self_graph.nodes();
-        let other_nodes = other_graph.nodes();
-        for node in self_nodes {
-            result_graph.add_node(node);
-        }
-        for node in other_nodes {
-            result_graph.add_node(node);
-        }
-        let self_edges = self_graph.all_edges();
-        let other_edges = other_graph.all_edges();
-        for edge in self_edges {
-            result_graph.add_edge(edge.0, edge.1, 0);
-        }
-        for edge in other_edges {
-            result_graph.add_edge(edge.0, edge.1, 0);
-        }
-
-        let result_id = make_node_uid();
-        result_graph.add_node(result_id);
-        result_graph.add_edge(result_id, self.op_head, 0);
-        result_graph.add_edge(result_id, other.op_head, 0);
-
-        Tensor {
-            id: result_id,
-            data: result,
-            shape: self.shape.clone(),
-            device: self.device,
-            grad: None,
-            requires_grad: self.requires_grad || other.requires_grad,
-            op_chain: result_graph,
-            op_head: result_id
-        }
     }
 }
