@@ -65,7 +65,7 @@ where
             None => {
                 for node in self.op_chain.nodes() {
                     let outgoing_edges = self.op_chain.edges_directed(node, Outgoing);
-                    if outgoing_edges.count() == 0 {
+                    if outgoing_edges.count() == 0 && db.get(node).unwrap().requires_grad {
                         all_leaves.push(node);
                     }
                 }
