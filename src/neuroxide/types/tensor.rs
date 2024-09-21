@@ -5,7 +5,7 @@ use num::NumCast;
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
 
-use super::tensordb::TensorDB;
+use super::tensordb::TENSOR_DB;
 
 #[derive(Debug, Clone)]
 pub struct Tensor<T> {
@@ -23,7 +23,7 @@ impl<T> Tensor<T>
 where
     T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    pub fn new(db: &mut TensorDB<T>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+    pub fn new(data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         let mut graph = GraphMap::new();
         let id = make_node_uid();
         graph.add_node(id);
@@ -37,7 +37,7 @@ where
             op_chain: graph,
             op_head: id
         };
-        db.insert(t.clone());
+        TENSOR_DB.lock().unwrap().insert(t.clone());
         t
     }
 

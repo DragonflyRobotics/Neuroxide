@@ -2,7 +2,7 @@ use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::tensor::Tensor;
-use crate::types::tensordb::TensorDB;
+use crate::types::tensordb::TENSOR_DB as db;
 use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
 
@@ -13,14 +13,14 @@ impl<T> Operation<T> for MulOp
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    fn forward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+    fn forward(&self, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         let t = inputs[0].clone() * inputs[1].clone();
-        db.insert(t.clone());
+        db.lock().unwrap().insert(t.clone());
         t
     }
 
-    fn backward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(&self, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("Backward called on AddOp");
         // println!("Inputs: {:?}", inputs);
