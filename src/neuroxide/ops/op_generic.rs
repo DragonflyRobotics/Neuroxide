@@ -1,4 +1,4 @@
-use crate::types::{tensor::Tensor, tensordb::TensorDB};
+use crate::types::tensor::Tensor;
 
 pub trait Operation<T: std::marker::Copy>: std::fmt::Debug {
     fn forward(&self, input: &Vec<&Tensor<T>>) -> Tensor<T>;

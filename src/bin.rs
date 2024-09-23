@@ -6,11 +6,11 @@ use neuroxide::ops::mul::MulOp;
 use neuroxide::ops::op_generic::Operation;
 use neuroxide::types::tensor::Tensor;
 use neuroxide::types::device::Device;
-use neuroxide::types::tensordb::TensorDB;
+use neuroxide::types::tensordb::{DTypes, TensorDB};
 use petgraph::dot::Dot;
 
 fn main() {
-    let mut db = Arc::new(RwLock::new(TensorDB::new()));
+    let mut db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let x = Tensor::new(db.clone(), vec![5.0], vec![1], Device::CPU, true);
     let c1c = Tensor::new(db.clone(), vec![15.0], vec![1], Device::CPU, false);
     let c2c = Tensor::new(db.clone(), vec![6.0], vec![1], Device::CPU, false);

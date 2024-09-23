@@ -2,7 +2,6 @@ use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::tensor::Tensor;
-use crate::types::tensordb::TensorDB;
 use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
 
@@ -15,6 +14,9 @@ where
 {
     fn forward(&self, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
+        assert!(inputs[0].shape == inputs[1].shape);
+        assert!(inputs[0].device == inputs[1].device);
+        assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
         let t = inputs[0].clone() + inputs[1].clone();
         let db = inputs[0].dtype.clone();
         db.write().unwrap().insert(t.clone());
@@ -22,7 +24,7 @@ where
         t
     }
 
-    fn backward(&self, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(&self, inputs: &Vec<&Tensor<T>>, _grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("Backward called on AddOp");
         // println!("Inputs: {:?}", inputs);

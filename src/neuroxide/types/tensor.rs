@@ -86,7 +86,7 @@ where
             let data = vec![T::from(1).unwrap(); self.data.len()];
             let new_tensor = Tensor {
                 id: self.id,
-                data: data,
+                data,
                 shape: self.shape.clone(),
                 device: self.device.clone(),
                 op: self.op.clone(),
