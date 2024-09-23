@@ -1,8 +1,8 @@
 use crate::types::{tensor::Tensor, tensordb::TensorDB};
 
 pub trait Operation<T: std::marker::Copy>: std::fmt::Debug {
-    fn forward(&self, db: &mut TensorDB<T>, input: &Vec<&Tensor<T>>) -> Tensor<T>;
-    fn backward(&self, db: &mut TensorDB<T>, input: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T>;
+    fn forward(&self, input: &Vec<&Tensor<T>>) -> Tensor<T>;
+    fn backward(&self, input: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T>;
     fn clone_box(&self) -> Box<dyn Operation<T>>;
 }
 

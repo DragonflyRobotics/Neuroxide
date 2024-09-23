@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::{ops::{add::AddOp, mul::MulOp, op_generic::{Operation, Ops}}, types::device::Device};
 use num::NumCast;
@@ -7,7 +7,7 @@ use crate::utils::node_uid::make_node_uid;
 
 use super::tensordb::TensorDB;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Tensor<T> {
     pub id: i32,
     pub data: Vec<T>,
@@ -16,14 +16,15 @@ pub struct Tensor<T> {
     pub op: Ops,
     pub requires_grad: bool,
     pub op_chain: GraphMap<i32, i32, Directed>,
-    pub op_head: i32
+    pub op_head: i32,
+    pub dtype: Arc<RwLock<TensorDB<T>>>
 }
 
 impl<T> Tensor<T> 
 where
     T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    pub fn new(db: &mut TensorDB<T>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+    pub fn new(db: Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         let mut graph = GraphMap::new();
         let id = make_node_uid();
         graph.add_node(id);
@@ -35,27 +36,28 @@ where
             op: Ops::TensorEnum,
             requires_grad,
             op_chain: graph,
-            op_head: id
+            op_head: id,
+            dtype: db.clone()
         };
-        db.insert(t.clone());
+        db.write().unwrap().insert(t.clone());
         t
     }
 
-    fn match_ops(&self, db: &mut TensorDB<T>, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+    fn match_ops(&self, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         match d.op {
             Ops::AddEnum => {
-                AddOp.backward(db, inputs, Some(dx))
+                AddOp.backward(inputs, Some(dx))
             },
             Ops::MulEnum => {
-                MulOp.backward(db, inputs, Some(dx))
+                MulOp.backward(inputs, Some(dx))
             },
             _ => panic!("Operation not implemented")
         }
     }
 
-    pub fn backward(&self, db: &mut TensorDB<T>, dx: Option<Vec<i32>>) -> HashMap<i32, Tensor<T>> {
-        println!("Backward called on tensor: {:?}", self.id);
+    pub fn backward(&self, dx: Option<Vec<i32>>) -> HashMap<i32, Tensor<T>> {
         let mut all_leaves = Vec::new();
+        let db = self.dtype.read().unwrap();
         match dx {
             Some(x) => {
                 for node in x {
@@ -91,6 +93,7 @@ where
                 requires_grad: self.requires_grad,
                 op_chain: self.op_chain.clone(),
                 op_head: self.id,
+                dtype: self.dtype.clone()
             };
             grad.insert(leaf, new_tensor);
         }
@@ -105,7 +108,7 @@ where
                     let neighbor = self.op_chain.neighbors_directed(p[i], Outgoing).collect::<Vec<_>>();
                     // println!("{:?} = {:?} + {:?}", p[i], neighbor[0], neighbor[1]);
                     let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
-                    let output = self.match_ops(&mut db.clone(), db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                    let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                     temp = temp * output;
                 }
                 arr.push(temp);

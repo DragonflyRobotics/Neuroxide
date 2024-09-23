@@ -13,14 +13,16 @@ impl<T> Operation<T> for AddOp
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    fn forward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+    fn forward(&self, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         let t = inputs[0].clone() + inputs[1].clone();
-        db.insert(t.clone());
+        let db = inputs[0].dtype.clone();
+        db.write().unwrap().insert(t.clone());
+        drop(db);
         t
     }
 
-    fn backward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(&self, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("Backward called on AddOp");
         // println!("Inputs: {:?}", inputs);
@@ -30,12 +32,32 @@ where
             for i in 0..inputs[0].data.len() {
                 grad_data[i] = T::from(2).unwrap(); 
             }
-            Tensor::new(db, grad_data, inputs[0].shape.clone(), inputs[0].device.clone(), inputs[0].requires_grad)
+            Tensor {
+                id: inputs[0].id,
+                data: grad_data,
+                shape: inputs[0].shape.clone(),
+                device: inputs[0].device,
+                op: Ops::AddEnum,
+                requires_grad: inputs[0].requires_grad,
+                op_chain: inputs[0].op_chain.clone(),
+                op_head: inputs[0].op_head,
+                dtype: inputs[0].dtype.clone()
+            }
         } else {
             for i in 0..inputs[0].data.len() {
                 grad_data[i] = T::from(1).unwrap(); 
             }
-            Tensor::new(db, grad_data, inputs[0].shape.clone(), inputs[0].device.clone(), inputs[0].requires_grad)
+            Tensor {
+                id: inputs[0].id,
+                data: grad_data,
+                shape: inputs[0].shape.clone(),
+                device: inputs[0].device,
+                op: Ops::AddEnum,
+                requires_grad: inputs[0].requires_grad,
+                op_chain: inputs[0].op_chain.clone(),
+                op_head: inputs[0].op_head,
+                dtype: inputs[0].dtype.clone()
+            }
         }
     }
 
@@ -91,7 +113,8 @@ where
             op: Ops::AddEnum,
             requires_grad: self.requires_grad || other.requires_grad,
             op_chain: result_graph,
-            op_head: result_id
+            op_head: result_id,
+            dtype: self.dtype.clone()
         }
     }
 }

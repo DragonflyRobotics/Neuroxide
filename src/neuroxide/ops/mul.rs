@@ -13,14 +13,16 @@ impl<T> Operation<T> for MulOp
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    fn forward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+    fn forward(&self, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         let t = inputs[0].clone() * inputs[1].clone();
-        db.insert(t.clone());
+        let db = inputs[0].dtype.clone();
+        db.write().unwrap().insert(t.clone());
+        drop(db);
         t
     }
 
-    fn backward(&self, db: &mut TensorDB<T>, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(&self, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("Backward called on AddOp");
         // println!("Inputs: {:?}", inputs);
@@ -85,7 +87,8 @@ where
             op: Ops::MulEnum,
             requires_grad: self.requires_grad || other.requires_grad,
             op_chain: result_graph,
-            op_head: result_id
+            op_head: result_id,
+            dtype: self.dtype.clone()
         }
     }
 }
