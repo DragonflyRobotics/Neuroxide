@@ -26,6 +26,7 @@ fn main() {
     for g in grad.keys() {
         println!("{}", grad.get(g).unwrap().data[0]);
     }
+
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
 
