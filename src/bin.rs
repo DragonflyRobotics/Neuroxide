@@ -10,6 +10,8 @@ use neuroxide::types::tensordb::{DTypes, TensorDB};
 use petgraph::dot::Dot;
 
 fn main() {
+    use std::time::Instant;
+    let now = Instant::now();
     let mut db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let x = Tensor::new(db.clone(), vec![5.0], vec![1], Device::CPU, true);
     let c1c = Tensor::new(db.clone(), vec![15.0], vec![1], Device::CPU, false);
@@ -24,6 +26,7 @@ fn main() {
     for g in grad.keys() {
         println!("{}", grad.get(g).unwrap().data[0]);
     }
-
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
 
 }
