@@ -1,15 +1,18 @@
+extern crate test;
+
 use std::sync::{Arc, RwLock};
 
 use neuroxide::{ops::op_generic::Ops, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 
-#[test]
-fn new() {
-    let db = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
-    assert!(db.read().unwrap().get_dtype() == DTypes::F32);
+#[bench]
+fn new(b: &mut test::Bencher) {
+    b.iter(|| {
+        let _ = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
+    });
 }
 
-#[test]
-fn insert_get() {
+#[bench]
+fn insert_get(b: &mut test::Bencher) {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let x = Tensor {
         id: 0,
@@ -22,12 +25,16 @@ fn insert_get() {
         op: Ops::TensorEnum,
         dtype: db.clone()
     };
-    db.write().unwrap().insert(x.clone());
-    assert!(db.read().unwrap().get(0).unwrap().data == vec![5.0]);
+    b.iter(|| {
+        db.write().unwrap().insert(x.clone());
+        db.read().unwrap().get(0).unwrap();
+    });
 }
 
-#[test]
-fn get_dtype() {
+#[bench]
+fn get_dtype(b: &mut test::Bencher) {
     let db = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
-    assert!(db.read().unwrap().get_dtype() == DTypes::F32);
+    b.iter(|| {
+        db.read().unwrap().get_dtype();
+    });
 }
