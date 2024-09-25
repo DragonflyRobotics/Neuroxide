@@ -16,10 +16,10 @@ fn main() {
     let x = Tensor::new(db.clone(), vec![5.0], vec![1], Device::CPU, true);
     let c1c = Tensor::new(db.clone(), vec![15.0], vec![1], Device::CPU, false);
     let c2c = Tensor::new(db.clone(), vec![6.0], vec![1], Device::CPU, false);
-    let r1 = MulOp::forward(&MulOp, &vec![&x, &c1c]);
-    let r2 = MulOp::forward(&MulOp, &vec![&x, &c2c]);
-    let mut result = AddOp::forward(&AddOp, &vec![&r1, &r2]);
-    result = MulOp::forward(&MulOp, &vec![&result, &x]);
+    let r1 = MulOp::forward(&vec![&x, &c1c]);
+    let r2 = MulOp::forward(&vec![&x, &c2c]);
+    let mut result = AddOp::forward(&vec![&r1, &r2]);
+    result = MulOp::forward(&vec![&result, &x]);
     println!("{}", result);
 
     let grad = result.backward(None);

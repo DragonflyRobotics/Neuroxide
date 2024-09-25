@@ -12,7 +12,7 @@ impl<T> Operation<T> for MulOp
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    fn forward(&self, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+    fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         assert!(inputs[0].shape == inputs[1].shape);
         assert!(inputs[0].device == inputs[1].device);
@@ -24,7 +24,7 @@ where
         t
     }
 
-    fn backward(&self, inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("Backward called on AddOp");
         // println!("Inputs: {:?}", inputs);
@@ -37,9 +37,9 @@ where
         return inputs[1 - grad_index].clone(); 
     }
 
-    fn clone_box(&self) -> Box<dyn Operation<T>> {
-        Box::new(MulOp)
-    }
+    // fn clone_box(&self) -> Box<dyn Operation<T>> {
+    //     Box::new(MulOp)
+    // }
 }
 
 //implement add for tensor

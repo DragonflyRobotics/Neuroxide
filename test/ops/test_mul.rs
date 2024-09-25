@@ -8,12 +8,12 @@ fn forward() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let mut c1c = Tensor::new(db.clone(), vec![15.0], vec![1], Device::CPU, false);
     let mut c2c = Tensor::new(db.clone(), vec![6.0], vec![1], Device::CPU, false);
-    let mut result = MulOp::forward(&MulOp, &vec![&c1c, &c2c]);
+    let mut result = MulOp::forward(&vec![&c1c, &c2c]);
     assert_eq!(result.data[0], 15.0*6.0);
 
     c1c = Tensor::new(db.clone(), vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
     c2c = Tensor::new(db.clone(), vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
-    result = MulOp::forward(&MulOp, &vec![&c1c, &c2c]);
+    result = MulOp::forward(&vec![&c1c, &c2c]);
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] * c2c.data[i], epsilon = f64::EPSILON));
     }
@@ -25,10 +25,10 @@ fn backward() {
     let x = Tensor::new(db.clone(), vec![5.0], vec![1], Device::CPU, true);
     let c1c = Tensor::new(db.clone(), vec![15.0], vec![1], Device::CPU, false);
     let c2c = Tensor::new(db.clone(), vec![6.0], vec![1], Device::CPU, false);
-    let r1 = MulOp::forward(&MulOp, &vec![&x, &c1c]);
-    let r2 = MulOp::forward(&MulOp, &vec![&x, &c2c]);
-    let mut result = AddOp::forward(&AddOp, &vec![&r1, &r2]);
-    result = MulOp::forward(&MulOp, &vec![&result, &x]);
+    let r1 = MulOp::forward(&vec![&x, &c1c]);
+    let r2 = MulOp::forward(&vec![&x, &c2c]);
+    let mut result = AddOp::forward(&vec![&r1, &r2]);
+    result = MulOp::forward(&vec![&result, &x]);
     assert!(relative_eq!(result.data[0], 525.0));
 
     let grad = result.backward(None);

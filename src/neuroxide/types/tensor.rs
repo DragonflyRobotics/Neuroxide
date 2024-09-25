@@ -46,10 +46,10 @@ where
     fn match_ops(&self, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         match d.op {
             Ops::AddEnum => {
-                AddOp.backward(inputs, Some(dx))
+                AddOp::backward(inputs, Some(dx))
             },
             Ops::MulEnum => {
-                MulOp.backward(inputs, Some(dx))
+                MulOp::backward(inputs, Some(dx))
             },
             _ => panic!("Operation not implemented")
         }
