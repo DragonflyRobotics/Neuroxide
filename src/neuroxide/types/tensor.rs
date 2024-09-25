@@ -24,7 +24,7 @@ impl<T> Tensor<T>
 where
     T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
 {
-    pub fn new(db: Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+    pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         let mut graph = GraphMap::new();
         let id = make_node_uid();
         graph.add_node(id);
