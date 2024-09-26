@@ -13,12 +13,11 @@ fn forward(b: &mut test::Bencher) {
         let _result = MulOp::forward(&vec![&c1c, &c2c]);
     });
 
-    // let c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![5,1], Device::CPU, false); 
-    // let c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![5,1], Device::CPU, false);
-    // b.iter(|| {
-    //     let _result = MulOp::forward(&vec![&c1c, &c2c]);
-    // });
-    // TODO: Fix this
+    let c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![5,1], Device::CPU, false); 
+    let c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![5,1], Device::CPU, false);
+    b.iter(|| {
+        let _result = MulOp::forward(&vec![&c1c, &c2c]);
+    });
 }
 
 #[bench]
