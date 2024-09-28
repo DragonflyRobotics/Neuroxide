@@ -26,9 +26,6 @@ where
 
     fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
-        // println!("Backward called on AddOp");
-        // println!("Inputs: {:?}", inputs);
-        // println!("Grad: {:?}", grad);
 
         //get index of grad in inputs without for loop
         let grad_index = inputs.iter().position(|&x| x.id == grad.unwrap().id).unwrap();
@@ -37,9 +34,9 @@ where
         return inputs[1 - grad_index].clone(); 
     }
 
-    // fn clone_box(&self) -> Box<dyn Operation<T>> {
-    //     Box::new(MulOp)
-    // }
+    fn is_binary() -> bool {
+        true
+    }
 }
 
 //implement add for tensor

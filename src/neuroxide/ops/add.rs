@@ -26,9 +26,7 @@ where
 
     fn backward(inputs: &Vec<&Tensor<T>>, _grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
-        // println!("Backward called on AddOp");
-        // println!("Inputs: {:?}", inputs);
-        // println!("Grad: {:?}", grad);
+
         let mut grad_data = vec![T::default(); inputs[0].data.len()];
         if inputs[0].id == inputs[1].id { //c = a + a => dc/da = 2
             for i in 0..inputs[0].data.len() {
@@ -63,9 +61,9 @@ where
         }
     }
 
-    // fn clone_box() -> Box<dyn Operation<T>> {
-    //     Box::new(AddOp)
-    // }
+    fn is_binary() -> bool {
+        true
+    }
 }
 
 //implement add for tensor
