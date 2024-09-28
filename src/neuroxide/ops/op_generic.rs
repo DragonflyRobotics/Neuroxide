@@ -10,5 +10,6 @@ pub trait Operation<T: std::marker::Copy>: std::fmt::Debug {
 pub enum Ops {
     TensorEnum,
     AddEnum,
-    MulEnum
+    MulEnum,
+    SinEnum
 }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::types::tensor::Tensor;
+use crate::{types::tensor::Tensor, utils::types::print_type_of};
 
 #[derive(Clone, PartialEq)]
 pub enum DTypes {
@@ -48,3 +48,50 @@ impl <T> TensorDB<T> {
     }
 }
 
+
+pub fn assert_types<T>(dtype: DTypes, data_sample: T) {
+    match dtype {
+        DTypes::I8 => {
+            assert!(print_type_of(&data_sample) == "i8");
+        },
+        DTypes::I16 => {
+            assert!(print_type_of(&data_sample) == "i16");
+        },
+        DTypes::I32 => {
+            assert!(print_type_of(&data_sample) == "i32");
+        },
+        DTypes::I64 => {
+            assert!(print_type_of(&data_sample) == "i64");
+        },
+        DTypes::I128 => {
+            assert!(print_type_of(&data_sample) == "i128");
+        },
+        DTypes::U8 => {
+            assert!(print_type_of(&data_sample) == "u8");
+        },
+        DTypes::U16 => {
+            assert!(print_type_of(&data_sample) == "u16");
+        },
+        DTypes::U32 => {
+            assert!(print_type_of(&data_sample) == "u32");
+        },
+        DTypes::U64 => {
+            assert!(print_type_of(&data_sample) == "u64");
+        },
+        DTypes::U128 => {
+            assert!(print_type_of(&data_sample) == "u128");
+        },
+        DTypes::F32 => {
+            assert!(print_type_of(&data_sample) == "f32");
+        },
+        DTypes::F64 => {
+            assert!(print_type_of(&data_sample) == "f64");
+        },
+        DTypes::Bool => {
+            assert!(print_type_of(&data_sample) == "bool");
+        },
+        DTypes::Char => {
+            assert!(print_type_of(&data_sample) == "char");
+        }
+    }
+}

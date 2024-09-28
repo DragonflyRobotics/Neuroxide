@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, mul::MulOp, op_generic::{Operation, Ops}}, types::device::Device};
-use num::NumCast;
+use crate::{ops::{add::AddOp, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::device::Device, utils::types::print_type_of};
+use num::{Float, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
 
-use super::tensordb::TensorDB;
+use super::tensordb::{assert_types, TensorDB};
 
 #[derive(Clone)]
 pub struct Tensor<T> {
@@ -22,9 +22,10 @@ pub struct Tensor<T> {
 
 impl<T> Tensor<T> 
 where
-    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Float
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        assert_types(db.read().unwrap().get_dtype(), data[0]);
         let mut graph = GraphMap::new();
         let id = make_node_uid();
         graph.add_node(id);
@@ -50,6 +51,9 @@ where
             },
             Ops::MulEnum => {
                 MulOp::backward(inputs, Some(dx))
+            },
+            Ops::SinEnum => {
+                SinOp::backward(inputs, Some(dx))
             },
             _ => panic!("Operation not implemented")
         }
@@ -84,6 +88,8 @@ where
 
         for leaf in all_leaves.clone() {
             let data = vec![T::from(1).unwrap(); self.data.len()];
+            let mut new_graph = GraphMap::<i32, i32, Directed>::new();
+            new_graph.add_node(self.id);
             let new_tensor = Tensor {
                 id: self.id,
                 data,
@@ -91,7 +97,7 @@ where
                 device: self.device.clone(),
                 op: self.op.clone(),
                 requires_grad: self.requires_grad,
-                op_chain: self.op_chain.clone(),
+                op_chain: new_graph,
                 op_head: self.id,
                 dtype: self.dtype.clone()
             };
@@ -103,14 +109,21 @@ where
             let mut arr: Vec<Tensor<T>> = Vec::new();
             for p in path {
                 let mut temp = grad[&leaf].clone();
+                grad.get_mut(&leaf).unwrap().op_head = grad.get(&leaf).unwrap().id;
                 for i in 0..p.len() - 1 {
                     // println!("d{:?}/d{:?}", p[i], p[i + 1]);
                     let neighbor = self.op_chain.neighbors_directed(p[i], Outgoing).collect::<Vec<_>>();
                     // println!("{:?} = {:?} + {:?}", p[i], neighbor[0], neighbor[1]);
-                    let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
+                    let mut inputs = vec![];
+                    for n in neighbor {
+                        inputs.push(db.get(n).unwrap());
+                    }
+                    // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                     let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                     temp = temp * output;
+                    grad.get_mut(&leaf).unwrap().op_chain.add_edge(p[i], p[i + 1], 0);
                 }
+
                 arr.push(temp);
             }
             let mut sum = arr[0].clone();
@@ -129,9 +142,6 @@ where
     }
 }
 
-fn print_type_of<T>(_: &T) -> &'static str {
-    std::any::type_name::<T>()
-}
 
 impl<T: std::fmt::Debug> std::fmt::Display for Tensor<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
