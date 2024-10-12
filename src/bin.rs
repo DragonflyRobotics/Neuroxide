@@ -16,7 +16,7 @@ fn main() {
     use std::time::Instant;
     let now = Instant::now();
     let mut db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
-    let x = Tensor::<f32>::new(&db, vec![3.14159/4.0], vec![1], Device::CPU, true);
+    let x = Tensor::<f32>::new(&db, vec![3.14159/6.0], vec![1], Device::CPU, true);
 
     let result = SinOp::forward(&vec![&x]);
     println!("{}", result);

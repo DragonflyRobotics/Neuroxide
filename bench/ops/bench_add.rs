@@ -6,7 +6,7 @@ use neuroxide::{ops::{add::AddOp, mul::MulOp, op_generic::Operation as _}, types
 
 #[bench]
 fn forward(b: &mut test::Bencher) {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
     let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
     b.iter(|| {
@@ -22,7 +22,7 @@ fn forward(b: &mut test::Bencher) {
 
 #[bench]
 fn backward(b: &mut test::Bencher) {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     let c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
     let c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);

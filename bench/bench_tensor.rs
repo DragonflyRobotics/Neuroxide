@@ -8,7 +8,7 @@ use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, Tensor
 
 #[bench]
 fn new (b: &mut test::Bencher) {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     b.iter(|| {
         let _ = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     });
@@ -22,7 +22,7 @@ fn new (b: &mut test::Bencher) {
 
 #[bench]
 fn clear_graph(b: &mut test::Bencher) {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let mut x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     x.op_chain.add_node(1);
     x.op_chain.add_node(2);
