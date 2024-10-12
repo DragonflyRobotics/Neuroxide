@@ -5,7 +5,7 @@ use approx::relative_eq;
 
 #[test]
 fn forward() {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
     let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
     let mut result = AddOp::forward(&vec![&c1c, &c2c]);
@@ -21,7 +21,7 @@ fn forward() {
 
 #[test]
 fn backward() {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     let c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
     let c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);

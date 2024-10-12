@@ -1,16 +1,19 @@
-use num::{Float, NumCast};
-use petgraph::prelude::GraphMap;
+use num::{Num, NumCast};
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::tensor::Tensor;
 use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
+
+use super::f_to_i_ops::{CosOpTrait, SinOpTrait};
+
+
 
 #[derive(Debug, Clone)]
 pub struct SinOp;
 
 impl<T> Operation<T> for SinOp
 where
-    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Float
+    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Num + SinOpTrait + CosOpTrait
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 1);

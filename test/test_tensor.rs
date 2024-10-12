@@ -5,7 +5,7 @@ use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, Tensor
 
 #[test]
 fn new () {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     assert!(x.data[0] == 5.0);
     assert!(x.shape[0] == 1);
@@ -24,7 +24,7 @@ fn new () {
 
 #[test]
 fn clear_graph() {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let mut x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     x.op_chain.add_node(1);
     x.op_chain.add_node(2);
@@ -39,7 +39,7 @@ fn clear_graph() {
     
 #[test]
 fn dtypes() {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     // check that the value of 5.0 is of type f32
     assert!(x.data[0] == 5.0);

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::device::Device, utils::types::print_type_of};
-use num::{Float, NumCast};
+use crate::{ops::{add::AddOp, f_to_i_ops::{CosOpTrait, SinOpTrait}, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::device::Device, utils::types::print_type_of};
+use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
 
@@ -22,7 +22,7 @@ pub struct Tensor<T> {
 
 impl<T> Tensor<T> 
 where
-    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Float
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + Num
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
