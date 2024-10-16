@@ -2,6 +2,7 @@
 name = "Neuroxide"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [lib]
 name = "neuroxide"
@@ -21,6 +22,7 @@ path = "bench/bench.rs"
 
 [dependencies]
 approx = "0.5.1"
+libc = "0.2.159"
 num = "0.4.3"
 once_cell = "1.19.0"
 petgraph = "0.6.5"
