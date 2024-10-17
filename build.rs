@@ -1,4 +1,4 @@
-use std::process::Command;
+extern crate cc;
 use std::env;
 use std::path::PathBuf;
 
@@ -18,22 +18,13 @@ fn main() {
     // Link against the cudart library
     println!("cargo:rustc-link-lib=cudart");
 
-    // Path to the CUDA file
-    let cuda_file = "cuda/math_kernel.cu";
-
-    // Compile the CUDA file using nvcc
-    let status = Command::new("nvcc")
-        .args(&["-c", cuda_file, "-o", "math_kernel.o"]) // Generate an object file
-        .status()
-        .expect("Failed to compile CUDA code");
-
-    if !status.success() {
-        panic!("CUDA compilation failed!");
-    }
-
-    // Tell Cargo to include the compiled object file
-    println!("cargo:rustc-link-lib=math_kernel");
-    println!("cargo:rustc-link-search=native=.");
+    cc::Build::new()
+        .cuda(true)
+        .flag("-cudart=shared")
+        .flag("-gencode")
+        .flag("arch=compute_75,code=sm_75")
+        .file("cuda/math_kernel.cu")
+        .compile("libmath_kernel.a");
 
 }
 

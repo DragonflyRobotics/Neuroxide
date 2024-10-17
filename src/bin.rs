@@ -46,6 +46,11 @@ fn cudnnCreate(handle: *mut cudnnHandle_t) -> cudnnStatus_t;
 fn cudnnDestroy(handle: cudnnHandle_t) -> cudnnStatus_t;
 }
 
+#[link(name = "math_kernel", kind = "static")]
+extern "C" {
+fn vectorAdd_main();
+}
+
 // cuDNN types
 pub type cudnnHandle_t = *mut std::ffi::c_void;
 pub type cudnnStatus_t = i32; // usually cuDNN uses enums as return statuses
@@ -76,117 +81,121 @@ fn main() {
         }
 
 
-        // Create a tensor descriptor
-        let mut tensor_desc: cudnnTensorDescriptor_t = ptr::null_mut();
-        let status = cudnnCreateTensorDescriptor(&mut tensor_desc);
-        if status != CUDNN_STATUS_SUCCESS {
-            panic!("Failed to create tensor descriptor: {:?}", status);
-        }
-
-        // Set the tensor descriptor
-        let n = 1; // Batch size
-        let c = 1; // Number of channels
-        let h = 2; // Height
-        let w = 2; // Width
-        let data_type = CUDNN_DATA_FLOAT; // Data type
-        let format = CUDNN_TENSOR_NCHW; // Tensor format
+        // // Create a tensor descriptor
+        // let mut tensor_desc: cudnnTensorDescriptor_t = ptr::null_mut();
+        // let status = cudnnCreateTensorDescriptor(&mut tensor_desc);
+        // if status != CUDNN_STATUS_SUCCESS {
+        //     panic!("Failed to create tensor descriptor: {:?}", status);
+        // }
         //
-
-        let status = cudnnSetTensor4dDescriptor(
-            tensor_desc,
-            format,
-            data_type,
-            n,
-            c,
-            h,
-            w,
-        );
-
-
-        // Allocate memory on GPU for input tensors and output tensor
-        let size = (n * c * h * w) as usize * std::mem::size_of::<f32>();
-        let mut d_A: *mut c_void = ptr::null_mut();
-        let mut d_B: *mut c_void = ptr::null_mut();
-        let mut d_C: *mut c_void = ptr::null_mut();
-
-        let status = cudaMalloc(&mut d_A, size);
-        if status != 0 {
-            panic!("Failed to allocate device memory for A: {}", status);
-        }
-
-        let status = cudaMalloc(&mut d_B, size);
-        if status != 0 {
-            panic!("Failed to allocate device memory for B: {}", status);
-        }
-
-        let status = cudaMalloc(&mut d_C, size);
-        if status != 0 {
-            panic!("Failed to allocate device memory for C: {}", status);
-        }
-
-        // Initialize input tensors on the host
-        let h_A: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
-        let h_B: [f32; 4] = [5.0, 6.0, 7.0, 8.0];
-
-        for _ in 0..500000 {
-            // Copy input tensors from host to device
-            let status = cudaMemcpy(d_A, h_A.as_ptr() as *const c_void, size, cudaMemcpyHostToDevice);
-            if status != 0 {
-                panic!("Failed to copy data from host to device A: {}", status);
-            }
-
-            let status = cudaMemcpy(d_B, h_B.as_ptr() as *const c_void, size, cudaMemcpyHostToDevice);
-            if status != 0 {
-                panic!("Failed to copy data from host to device B: {}", status);
-            }
-
-        }
-
-         // Perform addition
-        let alpha: f32 = 1.0;
-        let beta: f32 = 1.0;
-
-        let status = cudnnAddTensor(
-            handle,
-            &alpha,
-            tensor_desc,
-            d_A as *const f32,
-            &beta,
-            tensor_desc,
-            d_B as *mut f32,
-        );
-
-        if status != CUDNN_STATUS_SUCCESS {
-            panic!("Failed to perform tensor addition: {:?}", status);
-        }
-
-        // Allocate space for the result tensor on the host
-        let mut h_C: [f32; 4] = [0.0; 4];
-
-        // Copy the result tensor from device to host
-        let status = cudaMemcpy(h_C.as_mut_ptr() as *mut c_void, d_B, size, cudaMemcpyDeviceToHost);
-        if status != 0 {
-            panic!("Failed to copy data from device to host C: {}", status);
-        }
-
-        // Print the result
-        println!("Result tensor C:");
-        for value in &h_C {
-            print!("{} ", value);
-        }
-        println!();
-
-        // Free device memory
-        cudaFree(d_A);
-        cudaFree(d_B);
-        cudaFree(d_C);
-
-        if status != CUDNN_STATUS_SUCCESS {
-            panic!("Failed to set tensor descriptor: {:?}", status);
-        }
+        // // Set the tensor descriptor
+        // let n = 1; // Batch size
+        // let c = 1; // Number of channels
+        // let h = 2; // Height
+        // let w = 2; // Width
+        // let data_type = CUDNN_DATA_FLOAT; // Data type
+        // let format = CUDNN_TENSOR_NCHW; // Tensor format
+        // //
+        //
+        // let status = cudnnSetTensor4dDescriptor(
+        //     tensor_desc,
+        //     format,
+        //     data_type,
+        //     n,
+        //     c,
+        //     h,
+        //     w,
+        // );
+        //
+        //
+        // // Allocate memory on GPU for input tensors and output tensor
+        // let size = (n * c * h * w) as usize * std::mem::size_of::<f32>();
+        // let mut d_A: *mut c_void = ptr::null_mut();
+        // let mut d_B: *mut c_void = ptr::null_mut();
+        // let mut d_C: *mut c_void = ptr::null_mut();
+        //
+        // let status = cudaMalloc(&mut d_A, size);
+        // if status != 0 {
+        //     panic!("Failed to allocate device memory for A: {}", status);
+        // }
+        //
+        // let status = cudaMalloc(&mut d_B, size);
+        // if status != 0 {
+        //     panic!("Failed to allocate device memory for B: {}", status);
+        // }
+        //
+        // let status = cudaMalloc(&mut d_C, size);
+        // if status != 0 {
+        //     panic!("Failed to allocate device memory for C: {}", status);
+        // }
+        //
+        // // Initialize input tensors on the host
+        // let h_A: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
+        // let h_B: [f32; 4] = [5.0, 6.0, 7.0, 8.0];
+        //
+        // for _ in 0..500000 {
+        //     // Copy input tensors from host to device
+        //     let status = cudaMemcpy(d_A, h_A.as_ptr() as *const c_void, size, cudaMemcpyHostToDevice);
+        //     if status != 0 {
+        //         panic!("Failed to copy data from host to device A: {}", status);
+        //     }
+        //
+        //     let status = cudaMemcpy(d_B, h_B.as_ptr() as *const c_void, size, cudaMemcpyHostToDevice);
+        //     if status != 0 {
+        //         panic!("Failed to copy data from host to device B: {}", status);
+        //     }
+        //
+        // }
+        //
+        // // Perform addition
+        // let alpha: f32 = 1.0;
+        // let beta: f32 = 1.0;
+        //
+        // let status = cudnnAddTensor(
+        //     handle,
+        //     &alpha,
+        //     tensor_desc,
+        //     d_A as *const f32,
+        //     &beta,
+        //     tensor_desc,
+        //     d_B as *mut f32,
+        // );
+        //
+        // if status != CUDNN_STATUS_SUCCESS {
+        //     panic!("Failed to perform tensor addition: {:?}", status);
+        // }
+        //
+        // // Allocate space for the result tensor on the host
+        // let mut h_C: [f32; 4] = [0.0; 4];
+        //
+        // // Copy the result tensor from device to host
+        // let status = cudaMemcpy(h_C.as_mut_ptr() as *mut c_void, d_B, size, cudaMemcpyDeviceToHost);
+        // if status != 0 {
+        //     panic!("Failed to copy data from device to host C: {}", status);
+        // }
+        //
+        // // Print the result
+        // println!("Result tensor C:");
+        // for value in &h_C {
+        //     print!("{} ", value);
+        // }
+        // println!();
+        //
+        // // Free device memory
+        // cudaFree(d_A);
+        // cudaFree(d_B);
+        // cudaFree(d_C);
+        //
+        // if status != CUDNN_STATUS_SUCCESS {
+        //     panic!("Failed to set tensor descriptor: {:?}", status);
+        // }
 
         println!("Device count: {}", count);
 
+
+
+        vectorAdd_main();
+        println!("Hello, world!");
 
         // // Destroy cuDNN handle
         cudnnDestroy(handle);
