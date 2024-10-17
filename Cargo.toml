@@ -30,3 +30,7 @@ rand = "0.8.5"
 
 [build-dependencies]
 cc = "1.1.30"
+
+[features]
+default = []
+cuda = []

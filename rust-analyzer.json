@@ -1,0 +1,11 @@
+{
+    "rust-analyzer": {
+        "cargo": {
+            "features": ["cuda"]  
+        },
+        "diagnostics": {
+            "enable": true
+        }
+    }
+}
+
