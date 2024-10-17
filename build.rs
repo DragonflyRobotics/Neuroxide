@@ -28,22 +28,34 @@ fn main() {
         for entry in entries.filter_map(Result::ok) {
             if let Some(extension) = entry.path().extension() {
                 if extension == "cu" {
-                    // Print the new file name
-                    cc::Build::new()
-                        .cuda(true)
-                        .flag("-cudart=shared")
-                        .flag("-gencode")
-                        .flag("arch=compute_75,code=sm_75")
-                        .file(entry.path())
+                    let mut build = cc::Build::new();
+                    build.cuda(true);
+                    build.flag("-cudart=shared");
+
+                    // Add each gencode specification individually
+                    let gencode_flags = [
+                        "arch=compute_50,code=sm_50",
+                        "arch=compute_60,code=sm_60",
+                        "arch=compute_61,code=sm_61",
+                        "arch=compute_70,code=sm_70",
+                        "arch=compute_75,code=sm_75",
+                        "arch=compute_80,code=sm_80",
+                    ];
+
+                    for flag in &gencode_flags {
+                        build.flag("-gencode").flag(flag);
+                    }
+
+                    build.file(entry.path())
                         .compile(format!("lib{}.a", entry.path().file_stem().unwrap().to_str().unwrap()).as_str());
-                    // println!("Compiling: {:?} ==> {:?}", entry.path(), format!("lib{}.a", entry.path().file_stem().unwrap().to_str().unwrap()));
                 }
             }
         }
     } else {
         eprintln!("Error: Could not read directory {}", cuda_dir);
     }
-
+    println!("cargo::rerun-if-changed=build.rs");
+    println!("cargo::rerun-if-changed={}", cuda_dir);
 }
 
 #[cfg(not(feature = "cuda"))]
