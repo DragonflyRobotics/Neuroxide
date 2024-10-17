@@ -10,7 +10,6 @@ fn cudaGetDeviceCount(count: *mut i32) -> CudnnStatusT;
 extern "C" {
 fn getDeviceName_main(name: *mut u8, device: i32) -> CudnnStatusT;
 fn getTotalMem_main(mem: *mut size_t, device: i32) -> CudnnStatusT;
-fn vectorAdd_main(len: i32, A: *mut f32, B: *mut f32, C: *mut f32) -> CudnnStatusT;
 }
 
 
@@ -40,10 +39,6 @@ pub fn get_cuda_device_mem(device: i32) -> size_t {
     let mut mem: size_t = 0;
     unsafe {
         getTotalMem_main(&mut mem, device);
-        let mut A = vec![1.0f32, 2.0f32, 3.0f32, 4.0f32];
-        let mut B = vec![4.0f32, 3.0f32, 2.0f32, 1.0f32];
-        let mut C = vec![0.0f32; 4];
-        vectorAdd_main(4, A.as_mut_ptr(), B.as_mut_ptr(), C.as_mut_ptr());
     }
     mem
 }
