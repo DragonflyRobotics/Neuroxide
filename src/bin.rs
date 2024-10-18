@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use neuroxide::{ops::{add::AddOp, cos::CosOp, op_generic::Operation}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+use neuroxide::{ops::{add::AddOp, cos::CosOp, mul::MulOp, op_generic::Operation}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use petgraph::dot::Dot;
 
 
@@ -11,9 +11,9 @@ fn main() {
     let x3 = Tensor::new(&db, vec![7.0], vec![1], Device::CPU, true);
     let x4 = Tensor::new(&db, vec![8.0], vec![1], Device::CPU, true);
 
-    let result = x1.clone() * (x2.clone() + x3) + x4;
+    let result = AddOp::forward(&vec![&MulOp::forward(&vec![&x1, &AddOp::forward(&vec![&x2, &x3])]), &x4]);
     let dot = Dot::new(&result.op_chain); 
     println!("{}", dot.to_string());
     let grad = result.backward(Some(vec![x2.id.clone()]));
-    println!("{}", grad.get(&x1.id).unwrap().data[0]);
+    println!("{}", grad.get(&x2.id).unwrap().data[0]);
 }

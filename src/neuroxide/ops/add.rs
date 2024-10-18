@@ -72,6 +72,7 @@ where
     type Output = Tensor<T>;
 
     fn add(self, other: Tensor<T>) -> Tensor<T> {
+        eprintln!("Users should NOT use this method and use Op::Forward instead.");
         assert!(self.shape == other.shape);
         assert!(self.device == other.device);
         let result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();

@@ -30,8 +30,7 @@ fn clear_graph() {
     let mut x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
     x.op_chain.add_node(1);
     x.op_chain.add_node(2);
-    x.op_chain.add_edge(1, 2, 1);
-    x.op_chain.add_edge(2, 1, 1);
+    x.op_chain.add_edge(1, 2, 1); x.op_chain.add_edge(2, 1, 1);
     assert!(x.op_chain.node_count() == 2+1);
     assert!(x.op_chain.edge_count() == 2);
     x.clear_graph();
