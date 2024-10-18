@@ -9,15 +9,15 @@ use super::f_to_i_ops::{CosOpTrait, SinOpTrait};
 
 
 #[derive(Debug, Clone)]
-pub struct SinOp;
+pub struct CosOp;
 
-impl<T> Operation<T> for SinOp
+impl<T> Operation<T> for CosOp
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Num + SinOpTrait + CosOpTrait
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 1);
-        let result = inputs[0].data.iter().map(|x| x.sin());
+        let result = inputs[0].data.iter().map(|x| x.cos());
         
                 //merge graphs
         let mut result_graph = inputs[0].op_chain.clone();
@@ -31,7 +31,7 @@ where
             data: result.collect(),
             shape: inputs[0].shape.clone(),
             device: inputs[0].device,
-            op: Ops::SinEnum,
+            op: Ops::CosEnum,
             requires_grad: inputs[0].requires_grad,
             op_chain: result_graph,
             op_head: result_id,
@@ -50,7 +50,8 @@ where
         assert!(inputs.len() == 1);
         let mut grad_data = vec![T::default(); inputs[0].data.len()];
         for i in 0..inputs[0].data.len() {
-            grad_data[i] = inputs[0].data[i].cos();
+            grad_data[i] = T::from(-1).unwrap() * inputs[0].data[i].sin();
+            println!("grad_data[i]: {:?}", grad_data[i]);
         }
         Tensor {
             id: inputs[0].id,

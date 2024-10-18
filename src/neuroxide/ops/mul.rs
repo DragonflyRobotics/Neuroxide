@@ -33,10 +33,6 @@ where
         
         return inputs[1 - grad_index].clone(); 
     }
-
-    fn is_binary() -> bool {
-        true
-    }
 }
 
 //implement add for tensor

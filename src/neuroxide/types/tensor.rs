@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, f_to_i_ops::{CosOpTrait, SinOpTrait}, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::device::Device, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, f_to_i_ops::{CosOpTrait, SinOpTrait}, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::device::Device, utils::types::print_type_of};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -55,6 +55,9 @@ where
             Ops::SinEnum => {
                 SinOp::backward(inputs, Some(dx))
             },
+            Ops::CosEnum => {
+                CosOp::backward(inputs, Some(dx))
+            },
             _ => panic!("Operation not implemented")
         }
     }
@@ -64,6 +67,7 @@ where
         let db = self.dtype.read().unwrap();
         match dx {
             Some(x) => {
+                println!("dx: {:?}", x);
                 for node in x {
                     all_leaves.push(node);
                 }
@@ -116,6 +120,7 @@ where
                     // println!("{:?} = {:?} + {:?}", p[i], neighbor[0], neighbor[1]);
                     let mut inputs = vec![];
                     for n in neighbor {
+                        // println!("n: {:?}", n);
                         inputs.push(db.get(n).unwrap());
                     }
                     // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];

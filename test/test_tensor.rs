@@ -1,6 +1,8 @@
 use std::sync::{Arc, RwLock};
 
-use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}};
+use approx::relative_eq;
+use neuroxide::{ops::{add::AddOp, mul::MulOp, op_generic::Operation}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+use petgraph::dot::Dot;
 
 
 #[test]
@@ -55,3 +57,19 @@ fn dtypes() {
     // check that the value of 5 is of type i32
     assert!(x.data[0] == 5);
 }
+
+#[test]
+fn partial_backward() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
+    let x1 = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
+    let x2 = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, true);
+    let x3 = Tensor::new(&db, vec![7.0], vec![1], Device::CPU, true);
+    let x4 = Tensor::new(&db, vec![8.0], vec![1], Device::CPU, true);
+
+    
+    let result = AddOp::forward(&vec![&MulOp::forward(&vec![&x1, &AddOp::forward(&vec![&x2, &x3])]), &x4]);
+    assert!(relative_eq!(result.data[0], 5.0 * (6.0 + 7.0) + 8.0, epsilon = f64::EPSILON));
+    let grad = result.backward(Some(vec![x2.id.clone()]));
+    assert!(relative_eq!(grad.get(&x2.id).unwrap().data[0], 5.0, epsilon = f64::EPSILON));
+}
+
