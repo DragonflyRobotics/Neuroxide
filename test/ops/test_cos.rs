@@ -22,6 +22,19 @@ fn forward() {
     }
 }
 
+#[cfg(feature = "cuda")]
+#[test]
+fn forward_cuda() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let x = Tensor::<f32>::new(&db, vec![0.0, 3.14/6.0, 3.14/4.0, 3.14/3.0, 3.14], vec![1], Device::CUDA, false);
+    let result = CosOp::forward(&vec![&x]);
+
+    for i in 0..result.data.len() {
+        assert!(relative_eq!(result.data[i], x.data[i].cos(), epsilon = f32::EPSILON));
+    }
+}
+
+
 #[test]
 fn backward() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));

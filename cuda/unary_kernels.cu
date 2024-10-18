@@ -30,39 +30,40 @@
  * number of elements numElements.
  */
 __global__ void
-vectorAdd(const float *A, const float *B, float *C, int numElements)
+vectorSin(const float *A, float *C, int numElements)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (i < numElements)
     {
-        C[i] = A[i] + B[i];
+        C[i] = sin(A[i]);
     }
 }
 
 __global__ void
-vectorMul(const float *A, const float *B, float *C, int numElements)
+vectorCos(const float *A, float *C, int numElements)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
 
     if (i < numElements)
     {
-        C[i] = A[i] * B[i];
+        C[i] = cos(A[i]);
     }
 }
+
 
 
 /**
  * Host main routine
  */
 extern  "C" {
-    void add_kernel(const int len, const float* A, const float* B, float* C)
+    void sin_kernel(const int len, const float* A, float* C)
     {
-        binaryVectorOp(len, A, B, C, vectorAdd);
+        unaryVectorOp(len, A, C, vectorSin);
     }
-    void mul_kernel(const int len, const float* A, const float* B, float* C)
+    void cos_kernel(const int len, const float* A, float* C)
     {
-        binaryVectorOp(len, A, B, C, vectorMul);
+        unaryVectorOp(len, A, C, vectorCos);
     }
 }
 
