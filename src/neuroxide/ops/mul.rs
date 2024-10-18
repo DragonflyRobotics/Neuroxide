@@ -18,9 +18,9 @@ where
         assert!(inputs[0].device == inputs[1].device);
         assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
         let t = inputs[0].clone() * inputs[1].clone();
-        let db = inputs[0].dtype.clone();
-        db.write().unwrap().insert(t.clone());
-        drop(db);
+        // let db = inputs[0].dtype.clone();
+        // db.write().unwrap().insert(t.clone());
+        // drop(db);
         t
     }
 
@@ -74,7 +74,7 @@ where
         result_graph.add_edge(result_id, self.op_head, make_node_uid());
         result_graph.add_edge(result_id, other.op_head, make_node_uid());
 
-        Tensor {
+        let t = Tensor {
             id: result_id,
             data: result,
             shape: self.shape.clone(),
@@ -84,6 +84,11 @@ where
             op_chain: result_graph,
             op_head: result_id,
             dtype: self.dtype.clone()
-        }
+        };
+
+        let db = self.dtype.clone();
+        db.write().unwrap().insert(t.clone());
+        drop(db);
+        t
     }
 }

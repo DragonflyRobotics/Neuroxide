@@ -18,9 +18,9 @@ where
         assert!(inputs[0].device == inputs[1].device);
         assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
         let t = inputs[0].clone() + inputs[1].clone();
-        let db = inputs[0].dtype.clone();
-        db.write().unwrap().insert(t.clone());
-        drop(db);
+        // let db = inputs[0].dtype.clone();
+        // db.write().unwrap().insert(t.clone());
+        // drop(db);
         t
     }
 
@@ -72,7 +72,6 @@ where
     type Output = Tensor<T>;
 
     fn add(self, other: Tensor<T>) -> Tensor<T> {
-        eprintln!("Users should NOT use this method and use Op::Forward instead.");
         assert!(self.shape == other.shape);
         assert!(self.device == other.device);
         let result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();
@@ -103,7 +102,7 @@ where
         result_graph.add_edge(result_id, self.op_head, make_node_uid());
         result_graph.add_edge(result_id, other.op_head, make_node_uid());
 
-        Tensor {
+        let t = Tensor {
             id: result_id,
             data: result,
             shape: self.shape.clone(),
@@ -113,6 +112,11 @@ where
             op_chain: result_graph,
             op_head: result_id,
             dtype: self.dtype.clone()
-        }
+        };
+
+        let db = self.dtype.clone();
+        db.write().unwrap().insert(t.clone());
+        drop(db);
+        t
     }
 }

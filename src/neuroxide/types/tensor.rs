@@ -40,6 +40,7 @@ where
             op_head: id,
             dtype: db.clone()
         };
+        println!("Tensor created: {}", id);
         db.write().unwrap().insert(t.clone());
         t
     }
@@ -64,19 +65,21 @@ where
 
     pub fn backward(&self, dx: Option<Vec<i32>>) -> HashMap<i32, Tensor<T>> {
         let mut all_leaves = Vec::new();
-        let db = self.dtype.read().unwrap();
-        match dx {
-            Some(x) => {
-                println!("dx: {:?}", x);
-                for node in x {
-                    all_leaves.push(node);
-                }
-            },
-            None => {
-                for node in self.op_chain.nodes() {
-                    let outgoing_edges = self.op_chain.edges_directed(node, Outgoing);
-                    if outgoing_edges.count() == 0 && db.get(node).unwrap().requires_grad {
+        {
+            let db = self.dtype.read().unwrap();
+            match dx {
+                Some(x) => {
+                    println!("dx: {:?}", x);
+                    for node in x {
                         all_leaves.push(node);
+                    }
+                },
+                None => {
+                    for node in self.op_chain.nodes() {
+                        let outgoing_edges = self.op_chain.edges_directed(node, Outgoing);
+                        if outgoing_edges.count() == 0 && db.get(node).unwrap().requires_grad {
+                            all_leaves.push(node);
+                        }
                     }
                 }
             }
@@ -112,6 +115,7 @@ where
             let path = &paths[&leaf];
             let mut arr: Vec<Tensor<T>> = Vec::new();
             for p in path {
+                // println!("Path: {:?}", p);
                 let mut temp = grad[&leaf].clone();
                 grad.get_mut(&leaf).unwrap().op_head = grad.get(&leaf).unwrap().id;
                 for i in 0..p.len() - 1 {
@@ -119,14 +123,22 @@ where
                     let neighbor = self.op_chain.neighbors_directed(p[i], Outgoing).collect::<Vec<_>>();
                     // println!("{:?} = {:?} + {:?}", p[i], neighbor[0], neighbor[1]);
                     let mut inputs = vec![];
-                    for n in neighbor {
-                        // println!("n: {:?}", n);
-                        inputs.push(db.get(n).unwrap());
+                    {
+                        let db = self.dtype.read().unwrap();
+                        for n in neighbor {
+                            // println!("n: {:?}", n);
+                            inputs.push(db.get(n).unwrap());
+                            // println!("inputs: ");
+                        }
+                        // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
+                        let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                        drop(db);
+                        temp = temp * output;
                     }
-                    // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
-                    let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
-                    temp = temp * output;
+                    // println!("output: ");
+                    // println!("grad: ");
                     grad.get_mut(&leaf).unwrap().op_chain.add_edge(p[i], p[i + 1], 0);
+                    // println!("grad: ");
                 }
 
                 arr.push(temp);
