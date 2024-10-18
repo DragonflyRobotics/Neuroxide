@@ -23,7 +23,7 @@ bool checkCUDASuccess(cudaError_t err)
     return true;
 }
 
-float* allocateCUDAMemory(float* var, size_t size)
+float* allocateCUDAMemory(size_t size)
 {
     float *d_var = NULL;
     checkCUDASuccess(cudaMalloc((void **)&d_var, size));
@@ -63,9 +63,9 @@ int binaryVectorOp(const int len, const float* A, const float* B, float* C, void
     memcpy(h_A, A, size);
     memcpy(h_B, B, size);
 
-    float *d_A = allocateCUDAMemory(h_A, size);
-    float *d_B = allocateCUDAMemory(h_B, size);
-    float *d_C = allocateCUDAMemory(C, size);
+    float *d_A = allocateCUDAMemory(size);
+    float *d_B = allocateCUDAMemory(size);
+    float *d_C = allocateCUDAMemory(size);
 
 
     copyDataToCUDAMemory(d_A, h_A, size);
