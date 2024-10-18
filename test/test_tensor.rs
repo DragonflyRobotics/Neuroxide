@@ -1,8 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use approx::relative_eq;
-use neuroxide::{ops::{add::AddOp, mul::MulOp, op_generic::Operation}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
-use petgraph::dot::Dot;
+use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}};
 
 
 #[test]

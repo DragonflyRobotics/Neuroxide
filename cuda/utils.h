@@ -72,7 +72,21 @@ int binaryVectorOp(const int len, const float* A, const float* B, float* C, void
     copyDataToCUDAMemory(d_B, h_B, size);
 
     // Launch the Vector Add CUDA Kernel
-    int threadsPerBlock = 256;
+    // int threadsPerBlock = 256;
+    
+    // Query device properties
+    cudaDeviceProp prop;
+    checkCUDASuccess(cudaGetDeviceProperties(&prop, 0));
+
+    // Set threadsPerBlock to a multiple of warp size (32) and within the max limit
+    int threadsPerBlock = prop.maxThreadsPerBlock;
+    if (threadsPerBlock > 1024) {
+        threadsPerBlock = 1024;
+    } else if (threadsPerBlock % 32 != 0) {
+        threadsPerBlock = (threadsPerBlock / 32) * 32;
+    }
+
+
     int blocksPerGrid =(len + threadsPerBlock - 1) / threadsPerBlock;
     printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
     kernel<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, len);
@@ -80,10 +94,10 @@ int binaryVectorOp(const int len, const float* A, const float* B, float* C, void
 
     // Copy the device result vector in device memory to the host result vector
     copyDataToHostMemory(C, d_C, size);
-    for (int i = 0; i < len; ++i)
-    {
-        printf("C[%d] = %f\n", i, C[i]);
-    }
+    // for (int i = 0; i < len; ++i)
+    // {
+    //     printf("C[%d] = %f\n", i, C[i]);
+    // }
 
 
     checkCUDASuccess(cudaFree(d_A));

@@ -1,9 +1,20 @@
 use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
+use crate::types::device::Device;
 use crate::types::tensor::Tensor;
 use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
+
+
+#[cfg(feature = "cuda")]
+extern "C" {
+pub fn add_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut f32) -> CudnnStatusT;
+}
+
+pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
+
+
 
 #[derive(Debug, Clone)]
 pub struct AddOp;
@@ -67,15 +78,35 @@ where
 
 impl<T> std::ops::Add for Tensor<T>
 where
-    T: std::ops::Add<Output = T> + Copy + Default,
+    T: std::ops::Add<Output = T> + Copy + Default + NumCast
 {
     type Output = Tensor<T>;
 
     fn add(self, other: Tensor<T>) -> Tensor<T> {
         assert!(self.shape == other.shape);
         assert!(self.device == other.device);
-        let result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();
+        let len: i32 = self.data.len() as i32;
+        let result: Vec<T>; // = vec![T::default(); len as usize];
+        match self.device {
+            Device::CPU => {
+                result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();
+            }
+            Device::CUDA => {
+                let a: Vec<f32> = self.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
+                let b: Vec<f32> = other.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
 
+                #[cfg(feature = "cuda")]
+                unsafe {
+                    let mut r = vec![0.0; len as usize];
+                    add_kernel(len, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, r.as_mut_ptr());
+                    result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
+                }
+                #[cfg(not(feature = "cuda"))]
+                {
+                    panic!("CUDA feature not enabled");
+                }
+            }
+        }
         //merge graphs
         let mut result_graph = GraphMap::new();
         let self_graph = &self.op_chain;
