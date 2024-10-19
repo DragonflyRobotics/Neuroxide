@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, f_to_i_ops::{CosOpTrait, SinOpTrait}, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::device::Device, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, f_to_i_ops::{CosOpTrait, SinOpTrait}, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -26,6 +26,9 @@ where
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
+        if device == Device::CUDA {
+            assert!(db.read().unwrap().get_dtype() != DTypes::F64);
+        }
         let mut graph = GraphMap::new();
         let id = make_node_uid();
         graph.add_node(id);

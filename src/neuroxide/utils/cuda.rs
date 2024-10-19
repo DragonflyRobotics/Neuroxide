@@ -15,7 +15,7 @@ fn getTotalMem_main(mem: *mut size_t, device: i32) -> CudnnStatusT;
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 
- 
+#[cfg(not(tarpaulin_include))]
 #[cfg(feature = "cuda")]
 pub fn get_cuda_device_count() -> i32 {
     let mut count: i32 = 0;
@@ -25,6 +25,7 @@ pub fn get_cuda_device_count() -> i32 {
     count
 }
 
+#[cfg(not(tarpaulin_include))]
 #[cfg(feature = "cuda")]
 pub fn get_cuda_device_name(device: i32) -> String {
     let mut name = [0u8; 256];
@@ -34,6 +35,7 @@ pub fn get_cuda_device_name(device: i32) -> String {
     std::str::from_utf8(&name).unwrap().to_string()
 }
 
+#[cfg(not(tarpaulin_include))]
 #[cfg(feature = "cuda")]
 pub fn get_cuda_device_mem(device: i32) -> size_t {
     let mut mem: size_t = 0;

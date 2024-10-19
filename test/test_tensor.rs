@@ -1,8 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use approx::relative_eq;
-use neuroxide::{ops::{add::AddOp, mul::MulOp, op_generic::Operation}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
-use petgraph::dot::Dot;
+use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}};
 
 
 #[test]
@@ -72,3 +71,13 @@ fn partial_backward() {
     assert!(relative_eq!(grad.get(&x2.id).unwrap().data[0], 5.0, epsilon = f64::EPSILON));
 }
 
+#[test]
+fn formatter() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let x1 = Tensor::<f32>::new(&db, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0], vec![3, 4], Device::CPU, true);
+    let formatted = format!("{}", x1);
+    assert_eq!(formatted, "Tensor<f32>([[1.0 , 2.0 , 3.0 , 4.0 ], [5.0 , 6.0 , 7.0 , 8.0 ], [9.0 , 10.0 , 11.0 , 12.0 ]]\n");
+    let x1 = Tensor::<f32>::new(&db, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0], vec![4, 3, 1], Device::CPU, true);
+    let formatted = format!("{}", x1);
+    assert_eq!(formatted, "Tensor<f32>([[[1.0 ], [2.0 ], [3.0 ]], [[4.0 ], [5.0 ], [6.0 ]], [[7.0 ], [8.0 ], [9.0 ]], [[10.0 ], [11.0 ], [12.0 ]]]\n");
+}
