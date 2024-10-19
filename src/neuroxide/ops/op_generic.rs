@@ -12,4 +12,6 @@ pub enum Ops {
     MulEnum,
     SinEnum,
     CosEnum,
+    PowEnum,
+    LnEnum,
 }

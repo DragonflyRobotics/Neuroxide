@@ -51,6 +51,16 @@ vectorMul(const float *A, const float *B, float *C, int numElements)
     }
 }
 
+__global__ void
+vectorPow(const float *A, const float *B, float *C, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements)
+    {
+        C[i] = pow(A[i], B[i]);
+    }
+}
 
 /**
  * Host main routine
@@ -63,6 +73,10 @@ extern  "C" {
     void mul_kernel(const int len, const float* A, const float* B, float* C)
     {
         binaryVectorOp(len, A, B, C, vectorMul);
+    }
+    void pow_kernel(const int len, const float* A, const float* B, float* C)
+    {
+        binaryVectorOp(len, A, B, C, vectorPow);
     }
 }
 

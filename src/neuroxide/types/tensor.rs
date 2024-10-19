@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, f_to_i_ops::{CosOpTrait, SinOpTrait}, mul::MulOp, op_generic::{Operation, Ops}, sin::SinOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -22,7 +22,7 @@ pub struct Tensor<T> {
 
 impl<T> Tensor<T> 
 where
-    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + Num
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + PowOpTrait + LnOpTrait + Num
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
@@ -60,6 +60,12 @@ where
             },
             Ops::CosEnum => {
                 CosOp::backward(inputs, Some(dx))
+            },
+            Ops::PowEnum => {
+                PowOp::backward(inputs, Some(dx))
+            },
+            Ops::LnEnum => {
+                LnOp::backward(inputs, Some(dx))
             },
             _ => panic!("Operation not implemented")
         }

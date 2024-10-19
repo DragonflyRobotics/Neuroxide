@@ -3,24 +3,24 @@ use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
 use crate::utils::node_uid::make_node_uid;
-use std::ops::{Add, Mul};
+use std::ops::{Add, Div, Mul};
 
-use super::f_to_i_ops::{CosOpTrait, SinOpTrait};
+use super::f_to_i_ops::LnOpTrait;
 
 
 #[cfg(feature = "cuda")]
 extern "C" {
-pub fn cos_kernel(len: i32, a: *mut f32, c: *mut f32) -> CudnnStatusT;
+pub fn ln_kernel(len: i32, a: *mut f32, c: *mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 
 #[derive(Debug, Clone)]
-pub struct CosOp;
+pub struct LnOp;
 
-impl<T> Operation<T> for CosOp
+impl<T> Operation<T> for LnOp
 where
-    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Num + SinOpTrait + CosOpTrait
+    T: Add<Output = T> + Mul<Output = T> + Div<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Num + LnOpTrait
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 1);
@@ -28,7 +28,7 @@ where
 
         match inputs[0].device {
             Device::CPU => {
-                result = inputs[0].data.iter().map(|x| x.cos()).collect();
+                result = inputs[0].data.iter().map(|x| x.ln()).collect();
             }
             Device::CUDA => {
                 let a: Vec<f32> = inputs[0].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
@@ -37,7 +37,7 @@ where
                 #[cfg(feature = "cuda")]
                 unsafe {
                     let mut r = vec![0.0f32; len as usize];
-                    cos_kernel(len, a.as_ptr() as *mut f32, r.as_mut_ptr());
+                    ln_kernel(len, a.as_ptr() as *mut f32, r.as_mut_ptr());
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
                 }
                 #[cfg(not(feature = "cuda"))]
@@ -60,7 +60,7 @@ where
             data: result,
             shape: inputs[0].shape.clone(),
             device: inputs[0].device,
-            op: Ops::CosEnum,
+            op: Ops::LnEnum,
             requires_grad: inputs[0].requires_grad,
             op_chain: result_graph,
             op_head: result_id,
@@ -79,14 +79,14 @@ where
         assert!(inputs.len() == 1);
         let mut grad_data = vec![T::default(); inputs[0].data.len()];
         for i in 0..inputs[0].data.len() {
-            grad_data[i] = T::from(-1).unwrap() * inputs[0].data[i].sin();
+            grad_data[i] = T::one()/inputs[0].data[i];
         }
         Tensor {
             id: inputs[0].id,
             data: grad_data,
             shape: inputs[0].shape.clone(),
             device: inputs[0].device,
-            op: Ops::CosEnum,
+            op: Ops::LnEnum,
             requires_grad: inputs[0].requires_grad,
             op_chain: inputs[0].op_chain.clone(),
             op_head: inputs[0].op_head,
@@ -94,3 +94,4 @@ where
         }
     }
 }
+

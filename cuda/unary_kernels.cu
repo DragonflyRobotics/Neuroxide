@@ -51,6 +51,16 @@ vectorCos(const float *A, float *C, int numElements)
     }
 }
 
+__global__ void
+vectorLn(const float *A, float *C, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements)
+    {
+        C[i] = log(A[i]);
+    }
+}
 
 
 /**
@@ -64,6 +74,10 @@ extern  "C" {
     void cos_kernel(const int len, const float* A, float* C)
     {
         unaryVectorOp(len, A, C, vectorCos);
+    }
+    void ln_kernel(const int len, const float* A, float* C)
+    {
+        unaryVectorOp(len, A, C, vectorLn);
     }
 }
 
