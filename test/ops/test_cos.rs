@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use neuroxide::{ops::{cos::CosOp, op_generic::Operation as _, sin::SinOp}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+use neuroxide::{ops::{cos::CosOp, op_generic::Operation as _}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use approx::relative_eq;
 
 #[test]

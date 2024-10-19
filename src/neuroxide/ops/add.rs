@@ -85,18 +85,17 @@ where
     fn add(self, other: Tensor<T>) -> Tensor<T> {
         assert!(self.shape == other.shape);
         assert!(self.device == other.device);
-        let len: i32 = self.data.len() as i32;
         let result: Vec<T>; // = vec![T::default(); len as usize];
         match self.device {
             Device::CPU => {
                 result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a + *b).collect();
             }
             Device::CUDA => {
-                let a: Vec<f32> = self.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-                let b: Vec<f32> = other.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-
                 #[cfg(feature = "cuda")]
                 unsafe {
+                    let len: i32 = self.data.len() as i32;
+                    let a: Vec<f32> = self.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
+                    let b: Vec<f32> = other.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
                     let mut r = vec![0.0; len as usize];
                     add_kernel(len, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, r.as_mut_ptr());
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();

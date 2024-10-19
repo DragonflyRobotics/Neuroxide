@@ -31,11 +31,11 @@ where
                 result = inputs[0].data.iter().map(|x| x.cos()).collect();
             }
             Device::CUDA => {
-                let a: Vec<f32> = inputs[0].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-                let len = a.len() as i32;
 
                 #[cfg(feature = "cuda")]
                 unsafe {
+                    let a: Vec<f32> = inputs[0].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
+                    let len = a.len() as i32;
                     let mut r = vec![0.0f32; len as usize];
                     cos_kernel(len, a.as_ptr() as *mut f32, r.as_mut_ptr());
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();

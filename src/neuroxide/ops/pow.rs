@@ -35,12 +35,11 @@ where
                 result = inputs[0].data.iter().zip(inputs[1].data.iter()).map(|(a, b)| a.pow(*b)).collect();
             }
             Device::CUDA => {
-                let a: Vec<f32> = inputs[0].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-                let b: Vec<f32> = inputs[1].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-                let len = a.len() as i32;
-
                 #[cfg(feature = "cuda")]
                 unsafe {
+                    let a: Vec<f32> = inputs[0].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
+                    let b: Vec<f32> = inputs[1].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
+                    let len = a.len() as i32;
                     let mut r = vec![0.0; len as usize];
                     pow_kernel(len, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, r.as_mut_ptr());
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
@@ -98,10 +97,10 @@ where
 
     }
 
-    fn backward(inputs: &Vec<&Tensor<T>>, _grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         let mut grad_data = vec![T::default(); inputs[0].data.len()];
-        let dx_index = if _grad.unwrap().id == inputs[0].id {0} else {1};
+        let dx_index = if grad.unwrap().id == inputs[0].id {0} else {1};
         for i in 0..inputs[0].data.len() {
             if dx_index == 0 {
                 grad_data[i] = inputs[1].data[i] * inputs[0].data[i].pow(inputs[1].data[i] - T::one());

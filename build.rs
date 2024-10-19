@@ -1,10 +1,10 @@
 extern crate cc;
-use std::env;
-use std::path::PathBuf;
-use std::fs;
 
 #[cfg(feature = "cuda")]
 fn main() {
+    use std::env;
+    use std::path::PathBuf;
+    use std::fs;
     // Check for the CUDA toolkit installation path
     let cuda_path = match env::var("CUDA_PATH") {
         Ok(path) => PathBuf::from(path),

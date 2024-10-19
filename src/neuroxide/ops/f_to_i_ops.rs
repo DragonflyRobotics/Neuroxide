@@ -210,12 +210,14 @@ impl PowOpTrait for u32 {
 
 impl PowOpTrait for u64 {
     fn pow(self, other: Self) -> Self {
+        let _ = other;
         panic!("Not implemented for u64");
     }
 }
 
 impl PowOpTrait for u128 {
     fn pow(self, other: Self) -> Self {
+        let _ = other;
         panic!("Not implemented for u128");
     }
 }
