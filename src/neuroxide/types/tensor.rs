@@ -43,7 +43,6 @@ where
             op_head: id,
             dtype: db.clone()
         };
-        println!("Tensor created: {}", id);
         db.write().unwrap().insert(t.clone());
         t
     }

@@ -20,6 +20,24 @@ fn forward(b: &mut test::Bencher) {
     });
 }
 
+#[cfg(feature = "cuda")]
+#[bench]
+fn forward_cuda(b: &mut test::Bencher) {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let mut c1c = Tensor::<f32>::new(&db, vec![15.0], vec![1], Device::CUDA, false);
+    let mut c2c = Tensor::<f32>::new(&db, vec![6.0], vec![1], Device::CUDA, false);
+    b.iter(|| {
+        let _result = AddOp::forward(&vec![&c1c, &c2c]);
+    });
+
+    c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CUDA, false); 
+    c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CUDA, false);
+    b.iter(|| {
+        let _result = AddOp::forward(&vec![&c1c, &c2c]);
+    });
+}
+
+
 #[bench]
 fn backward(b: &mut test::Bencher) {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));

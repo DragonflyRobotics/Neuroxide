@@ -56,6 +56,7 @@ fn main() {
     }
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed={}", cuda_dir);
+    println!("cargo:rustc-check-cfg=cfg(tarpaulin_include)");
 }
 
 #[cfg(not(feature = "cuda"))]

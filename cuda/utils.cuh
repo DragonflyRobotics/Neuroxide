@@ -91,7 +91,7 @@ inline int binaryVectorOp(const int len, const float* A, const float* B, float* 
 
 
     int blocksPerGrid =(len + threadsPerBlock - 1) / threadsPerBlock;
-    printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
+    // printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
     kernel<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_B, d_C, len);
     checkCUDASuccess(cudaGetLastError());
 
@@ -155,7 +155,7 @@ inline int unaryVectorOp(const int len, const float* A, float* C, void (*kernel)
 
 
     int blocksPerGrid =(len + threadsPerBlock - 1) / threadsPerBlock;
-    printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
+    // printf("CUDA kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
     kernel<<<blocksPerGrid, threadsPerBlock>>>(d_A, d_C, len);
     checkCUDASuccess(cudaGetLastError());
 
