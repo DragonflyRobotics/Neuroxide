@@ -3,6 +3,12 @@
 
 Welcome! This project attempts to rewrite the PyTorch framework (maintaining a consistent API call) in Rust in hopes of a faster, hard-typed AI framework. This project is currently in its Alpha phase, so feel free to contribute or contact me at my [email](kshahusa@gmail.com)! As this project is in its early phases, documentation will be sparse, but a quick overview of the development scope will be provided below.
 
+## Table of Contents
+- [About](#about)
+- [Sample Code](#sample-code)
+- [Goal](#goal)
+- [Contributing](#contributing)
+
 ## Usage
 Here is how a contributor/developer might use the project.
 1. `git clone git@github.com:DragonflyRobotics/Neuroxide.git`
@@ -65,8 +71,11 @@ println!(grad.get(&x2.id).unwrap().data[0]);
 **Note:** You can avoid the clunky notation and simply operate on tensors using `+`, `-`, `*`, and `/`! 
 
 
-## Why should you use this?
+## Goal
 Python has many benefits, mainly its flexibility, which makes it an avid language for AI/ML. The tradeoff is the clunky interpreter, alternation between Python and C++ bindings, and lack of multiprocessing, which make it inefficient and slow for many high-performance applications. This project attempts to maintain the comforts of the PyTorch syntax while leveraging a hard-typed, efficient language to create a powerful AI engine for cutting-edge projects. 
 
 ## Contributing
 We appreciate any contributions to this project to help it grow and encompass the full functionality of an AI engine. Please refer to our [contributing guidelines](https://github.com/DragonflyRobotics/Neuroxide/blob/dev/CONTRIBUTING.md) for details. 
+
+## License
+This project has a GNU License, which can be found [here](https://github.com/DragonflyRobotics/Neuroxide/blob/dev/LICENSE).
