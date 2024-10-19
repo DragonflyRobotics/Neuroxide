@@ -4,7 +4,7 @@
 Welcome! This project attempts to rewrite the PyTorch framework (maintaining a consistent API call) in Rust in hopes of a faster, hard-typed AI framework. This project is currently in its Alpha phase, so feel free to contribute or contact me at my [email](kshahusa@gmail.com)! As this project is in its early phases, documentation will be sparse, but a quick overview of the development scope will be provided below.
 
 ## Table of Contents
-- [About](#about)
+- [Usage](#usage)
 - [Sample Code](#sample-code)
 - [Goal](#goal)
 - [Contributing](#contributing)
