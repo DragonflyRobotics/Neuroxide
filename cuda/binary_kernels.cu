@@ -41,6 +41,17 @@ vectorAdd(const float *A, const float *B, float *C, int numElements)
 }
 
 __global__ void
+vectorSub(const float *A, const float *B, float *C, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements)
+    {
+        C[i] = A[i] - B[i];
+    }
+}
+
+__global__ void
 vectorMul(const float *A, const float *B, float *C, int numElements)
 {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
@@ -48,6 +59,17 @@ vectorMul(const float *A, const float *B, float *C, int numElements)
     if (i < numElements)
     {
         C[i] = A[i] * B[i];
+    }
+}
+
+__global__ void
+vectorDiv(const float *A, const float *B, float *C, int numElements)
+{
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+
+    if (i < numElements)
+    {
+        C[i] = A[i] / B[i];
     }
 }
 
@@ -70,9 +92,17 @@ extern  "C" {
     {
         binaryVectorOp(len, A, B, C, vectorAdd);
     }
+    void sub_kernel(const int len, const float* A, const float* B, float* C)
+    {
+        binaryVectorOp(len, A, B, C, vectorSub);
+    }
     void mul_kernel(const int len, const float* A, const float* B, float* C)
     {
         binaryVectorOp(len, A, B, C, vectorMul);
+    }
+    void div_kernel(const int len, const float* A, const float* B, float* C)
+    {
+        binaryVectorOp(len, A, B, C, vectorDiv);
     }
     void pow_kernel(const int len, const float* A, const float* B, float* C)
     {

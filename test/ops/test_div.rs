@@ -24,10 +24,10 @@ fn forward() {
 #[test]
 fn forward_cuda() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
-    let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CUDA, false);
-    let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CUDA, false);
+    let mut c1c = Tensor::<f32>::new(&db, vec![15.0], vec![1], Device::CUDA, false);
+    let mut c2c = Tensor::<f32>::new(&db, vec![6.0], vec![1], Device::CUDA, false);
     let mut result = DivOp::forward(&vec![&c1c, &c2c]);
-    assert_eq!(result.data[0], 15.0_f64/6.0_f64);
+    assert_eq!(result.data[0], 15.0_f32/6.0_f32);
 
     c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CUDA, false); 
     c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CUDA, false);

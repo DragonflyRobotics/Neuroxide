@@ -15,4 +15,5 @@ pub enum Ops {
     PowEnum,
     LnEnum,
     DivEnum,
+    SubEnum,
 }

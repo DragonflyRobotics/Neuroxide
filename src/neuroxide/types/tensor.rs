@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -51,6 +51,9 @@ where
         match d.op {
             Ops::AddEnum => {
                 AddOp::backward(inputs, Some(dx))
+            },
+            Ops::SubEnum => {
+                SubOp::backward(inputs, Some(dx))
             },
             Ops::MulEnum => {
                 MulOp::backward(inputs, Some(dx))
@@ -151,7 +154,6 @@ where
                     grad.get_mut(&leaf).unwrap().op_chain.add_edge(p[i], p[i + 1], 0);
                     // println!("grad: ");
                 }
-
                 arr.push(temp);
             }
             let mut sum = arr[0].clone();

@@ -1,5 +1,6 @@
 pub mod op_generic;
 pub mod add;
+pub mod sub;
 pub mod mul;
 pub mod div;
 pub mod pow;
