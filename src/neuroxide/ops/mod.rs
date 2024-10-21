@@ -8,3 +8,4 @@ pub mod sin;
 pub mod cos;
 pub mod ln;
 pub mod f_to_i_ops;
+pub mod macros;
