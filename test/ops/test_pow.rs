@@ -20,6 +20,24 @@ fn forward() {
     }
 }
 
+#[test]
+fn forward_macro() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
+    let x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, false);
+    let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
+    let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
+    
+    let result = pow!(x, c1c);
+    assert_eq!(result.data[0], 5.0_f64.powf(15.0));
+
+    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
+    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    let result = pow!(c1c, c2c);
+    for i in 0..result.data.len() {
+        assert!(relative_eq!(result.data[i], c1c.data[i].powf(c2c.data[i]), epsilon = f64::EPSILON));
+    }
+}
+
 #[cfg(feature = "cuda")]
 #[test]
 fn forward_cuda() {

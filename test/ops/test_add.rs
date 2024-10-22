@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 use neuroxide::{ops::{add::AddOp, mul::MulOp, op_generic::Operation as _}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use approx::relative_eq;
 
+
 #[test]
 fn forward() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
@@ -14,6 +15,22 @@ fn forward() {
     c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
     c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
     result = AddOp::forward(&vec![&c1c, &c2c]);
+    for i in 0..result.data.len() {
+        assert!(relative_eq!(result.data[i], c1c.data[i] + c2c.data[i], epsilon = f64::EPSILON));
+    }
+}
+
+#[test]
+fn forward_macro() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
+    let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
+    let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
+    let mut result = add!(c1c, c2c);
+    assert_eq!(result.data[0], 21.0);
+
+    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
+    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    result = add!(c1c, c2c);
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] + c2c.data[i], epsilon = f64::EPSILON));
     }

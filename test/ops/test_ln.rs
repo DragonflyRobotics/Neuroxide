@@ -22,6 +22,25 @@ fn forward() {
     }
 }
 
+#[test]
+fn forward_macro() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
+    let x = Tensor::<f64>::new(&db, vec![0.0, 3.14/6.0, 3.14/4.0, 3.14/3.0, 3.14], vec![1], Device::CPU, false);
+    let result = ln!(x);
+
+    for i in 0..result.data.len() {
+        assert!(relative_eq!(result.data[i], x.data[i].ln(), epsilon = f64::EPSILON));
+    }
+
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let x = Tensor::<f32>::new(&db, vec![0.0, 3.14/6.0, 3.14/4.0, 3.14/3.0, 3.14], vec![1], Device::CPU, false);
+    let result = ln!(x);
+
+    for i in 0..result.data.len() {
+        assert!(relative_eq!(result.data[i], x.data[i].ln(), epsilon = f32::EPSILON));
+    }
+}
+
 #[cfg(feature = "cuda")]
 #[test]
 fn forward_cuda() {

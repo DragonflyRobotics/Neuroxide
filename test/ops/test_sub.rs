@@ -20,6 +20,24 @@ fn forward() {
         assert!(relative_eq!(result.data[i], c1c.data[i] - c2c.data[i], epsilon = f64::EPSILON));
     }
 }
+
+#[test]
+fn forward_macro() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
+    let c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
+    let c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
+    let result = sub!(c1c, c2c);
+    assert_eq!(result.data[0], 9.0);
+
+    let c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
+    let c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    let result = sub!(c1c, c2c);
+    for i in 0..result.data.len() {
+        println!("{} - {} = {}", c1c.data[i], c2c.data[i], result.data[i]);
+        assert!(relative_eq!(result.data[i], c1c.data[i] - c2c.data[i], epsilon = f64::EPSILON));
+    }
+}
+
 #[cfg(feature = "cuda")]
 #[test]
 fn forward_cuda() {
