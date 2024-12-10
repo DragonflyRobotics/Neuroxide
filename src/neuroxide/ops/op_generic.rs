@@ -16,4 +16,5 @@ pub enum Ops {
     LnEnum,
     DivEnum,
     SubEnum,
+    MatMulEnum,
 }
