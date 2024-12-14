@@ -1,4 +1,4 @@
-use ndarray::{Array2, Array3, ArrayD, Axis, Ix2, Ix3, IxDyn};
+use ndarray::{Array1, Array2, Array3, ArrayD, Axis, Ix1, Ix2, Ix3, IxDyn};
 use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
@@ -27,12 +27,37 @@ where
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         assert!(inputs[0].device == inputs[1].device);
+        println!("{}", inputs[0]);
+        println!("{}", inputs[1]);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
         let shape: Vec<usize>;
         match inputs[0].device {
             Device::CPU => {
-                if inputs[0].shape.len() == 2 && inputs[1].shape.len() == 2 {
+                if inputs[0].shape.len() == 1 && inputs[1].shape.len() == 1 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
+                    let mut a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
+                    let mut b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
+
+                    if a.shape() != b.shape() {
+                        println!("Needs auto broadcasting");
+                        if a.shape() == [1] {
+                            a = Array1::<T>::from_elem(Ix1(b.shape().to_vec()[0]), a[0]); 
+                        } else if b.shape() == [1] {
+                            b = Array1::<T>::from_elem(Ix1(a.shape().to_vec()[0]), b[0]);
+                        } else {
+                            panic!("Auto broadcasting not supported");
+                        }
+                    }
+
+                    let c = a.dot(&b);
+                    result = vec![c];
+                    shape = vec![1];
+                    // result = c.iter().map(|&x| x).collect();
+                    // shape = vec![c.shape()[0], c.shape()[1]];
+                }
+                else if inputs[0].shape.len() == 2 && inputs[1].shape.len() == 2 {
                     let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
                     let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
                     let a: Array2<T> = a.into_dimensionality::<Ix2>().unwrap();
@@ -129,10 +154,14 @@ where
         let b = inputs[1 - grad_index].data.clone(); 
         let b_shape = inputs[1 - grad_index].shape.clone();
 
-        let mut b_t: ArrayD<T>;
-        let mut b_t_shape: Vec<usize>;
+        let b_t: ArrayD<T>;
+        let b_t_shape: Vec<usize>;
 
-        if b_shape.len() == 2 {
+        if b_shape.len() == 1 {
+            b_t = ArrayD::<T>::from_shape_vec(IxDyn(&b_shape), b).unwrap().to_owned();
+            b_t_shape = b_t.shape().to_vec();
+        }
+        else if b_shape.len() == 2 {
             b_t = ArrayD::<T>::from_shape_vec(IxDyn(&b_shape), b).unwrap().t().to_owned();
             b_t_shape = b_t.shape().to_vec();
         } else if b_shape.len() == 3 {

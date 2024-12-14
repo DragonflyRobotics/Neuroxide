@@ -151,9 +151,15 @@ where
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                         let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                         drop(db);
-                        if temp.shape == output.shape {
-                            temp = temp * output;
+                        if temp.shape == output.shape || temp.shape.len() == 1  && output.shape.len() == 1 {
+                            println!("Mul");
+                            println!("temp: {}", temp);
+                            println!("output: {}", output);
+                            temp = MulOp::forward(&vec![&temp, &output]);
                         } else {
+                            println!("MatMul");
+                            println!("temp: {}", temp);
+                            println!("output: {}", output);
                             temp = MatMulOp::forward(&vec![&temp, &output]);
                         }
                     }

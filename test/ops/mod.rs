@@ -6,3 +6,4 @@ mod test_cos;
 mod test_pow;
 mod test_ln;
 mod test_div;
+mod test_matmul;

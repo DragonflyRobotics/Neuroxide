@@ -23,10 +23,27 @@ where
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
-        assert!(inputs[0].shape == inputs[1].shape);
+        // assert!(inputs[0].shape == inputs[1].shape);
         assert!(inputs[0].device == inputs[1].device);
         assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
-        let t = inputs[0].clone() * inputs[1].clone();
+        let mut a = inputs[0].clone();
+        let mut b = inputs[1].clone();
+        println!("{} {}", a, b);
+        if a.shape != b.shape {
+            // Check for broadcasting
+            println!("Broadcasting");
+            if a.shape.len() == 1 {
+                a.shape = b.shape.clone();
+                a.data = vec![a.data[0]; b.data.len()];
+            } else if inputs[1].shape.len() == 1 {
+                b.shape = inputs[0].shape.clone();
+                b.data = vec![b.data[0]; inputs[0].data.len()];
+            } else {
+                panic!("Broadcasting not supported");
+            }
+        }
+        println!("{} {}", a, b);
+        let t = a.clone() * b.clone();
         // let db = inputs[0].dtype.clone();
         // db.write().unwrap().insert(t.clone());
         // drop(db);
