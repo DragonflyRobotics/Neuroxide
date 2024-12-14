@@ -5,7 +5,6 @@ use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
 use crate::utils::node_uid::make_node_uid;
-use std::fmt::Display;
 use std::ops::{Add, Mul};
 
 
@@ -23,14 +22,11 @@ pub struct MatMulOp;
 
 impl<T> Operation<T> for MatMulOp 
 where
-    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + Display + Clone + NumCast + ndarray::ScalarOperand + ndarray::LinalgScalar //+ Not<Output = T>
+    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + Clone + NumCast + ndarray::ScalarOperand + ndarray::LinalgScalar //+ Not<Output = T>
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         assert!(inputs[0].device == inputs[1].device);
-
-        println!("{:?}", inputs[0].shape);
-        println!("{:?}", inputs[1].shape);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
         let shape: Vec<usize>;
@@ -41,8 +37,6 @@ where
                     let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
                     let a: Array2<T> = a.into_dimensionality::<Ix2>().unwrap();
                     let b: Array2<T> = b.into_dimensionality::<Ix2>().unwrap();
-                    // println!("{:?}", a);
-                    // println!("{:?}", b);
                     let c = a.dot(&b);
                     result = c.iter().map(|&x| x).collect();
                     shape = vec![c.shape()[0], c.shape()[1]];
@@ -135,10 +129,33 @@ where
         let b = inputs[1 - grad_index].data.clone(); 
         let b_shape = inputs[1 - grad_index].shape.clone();
 
+        let mut b_t: ArrayD<T>;
+        let mut b_t_shape: Vec<usize>;
+
         if b_shape.len() == 2 {
-            let b_arr = ArrayD::<T>::from_shape_vec(IxDyn(&b_shape), b).unwrap(); 
-            let ones = ArrayD::<T>::ones(IxDyn(&b_shape));
-            let b_arr_t = b_arr.t().to_owned();
+            b_t = ArrayD::<T>::from_shape_vec(IxDyn(&b_shape), b).unwrap().t().to_owned();
+            b_t_shape = b_t.shape().to_vec();
+        } else if b_shape.len() == 3 {
+            b_t = ArrayD::<T>::from_shape_vec(IxDyn(&b_shape), b).unwrap().permuted_axes(IxDyn(&[0, 2, 1])).to_owned();
+            b_t_shape = b_t.shape().to_vec();
+        } else if b_shape.len() == 4 {
+            todo!();
+        } else {
+            panic!("Matrix multiplication grad only supported for <=3D tensors");
+        }
+
+
+
+        Tensor {
+            id: inputs[1 - grad_index].id,
+            data: b_t.iter().map(|&x| x).collect(),
+            shape: b_t_shape,
+            device: inputs[1 - grad_index].device,
+            op: Ops::MatMulEnum,
+            requires_grad: inputs[1 - grad_index].requires_grad,
+            op_chain: inputs[1 - grad_index].op_chain.clone(),
+            op_head: inputs[1 - grad_index].op_head,
+            dtype: inputs[1 - grad_index].dtype.clone()
         }
     }
 }
