@@ -27,7 +27,7 @@ where
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
         if device == Device::CUDA {
-            assert!(db.read().unwrap().get_dtype() != DTypes::F64);
+            assert!(db.read().unwrap().get_dtype() == DTypes::F32, "CUDA only supports f32");
         }
         let mut graph = GraphMap::new();
         let id = make_node_uid();
@@ -56,7 +56,6 @@ where
                 SubOp::backward(inputs, Some(dx))
             },
             Ops::MulEnum => {
-                println!("Mul backward");
                 MulOp::backward(inputs, Some(dx))
             },
             Ops::SinEnum => {
@@ -152,14 +151,8 @@ where
                         let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                         drop(db);
                         if temp.shape == output.shape || temp.shape.len() == 1  && output.shape.len() == 1 {
-                            println!("Mul");
-                            println!("temp: {}", temp);
-                            println!("output: {}", output);
                             temp = MulOp::forward(&vec![&temp, &output]);
                         } else {
-                            println!("MatMul");
-                            println!("temp: {}", temp);
-                            println!("output: {}", output);
                             temp = MatMulOp::forward(&vec![&temp, &output]);
                         }
                     }
@@ -172,7 +165,7 @@ where
             }
             let mut sum = arr[0].clone();
             for i in 1..arr.len() {
-                sum = sum + arr[i].clone();
+                sum = AddOp::forward(&vec![&sum, &arr[i].clone()]);
             }
             grad.get_mut(&leaf).unwrap().data = sum.data;
             grad.get_mut(&leaf).unwrap().shape = sum.shape;

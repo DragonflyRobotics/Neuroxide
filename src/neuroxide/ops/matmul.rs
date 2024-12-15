@@ -8,15 +8,13 @@ use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
 
 
-
 #[cfg(feature = "cuda")]
 extern "C" {
-pub fn add_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut f32) -> CudnnStatusT;
+pub fn matmul(m: i32, n: i32, k: i32, h_A: *mut f32, h_B: *mut f32, h_C: *mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
-
-
+//
 #[derive(Debug, Clone)]
 pub struct MatMulOp;
 
@@ -27,8 +25,6 @@ where
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
         assert!(inputs[0].device == inputs[1].device);
-        println!("{}", inputs[0]);
-        println!("{}", inputs[1]);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
         let shape: Vec<usize>;
@@ -98,7 +94,80 @@ where
                 }
             }
             Device::CUDA => {
-                panic!("CUDA feature not enabled");
+                if inputs[0].shape.len() == 1 && inputs[1].shape.len() == 1 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
+                    let mut a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
+                    let mut b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
+
+                    if a.shape() != b.shape() {
+                        println!("Needs auto broadcasting");
+                        if a.shape() == [1] {
+                            a = Array1::<T>::from_elem(Ix1(b.shape().to_vec()[0]), a[0]); 
+                        } else if b.shape() == [1] {
+                            b = Array1::<T>::from_elem(Ix1(a.shape().to_vec()[0]), b[0]);
+                        } else {
+                            panic!("Auto broadcasting not supported");
+                        }
+                    }
+                    let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
+                    let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
+                    let a_shape = a.shape().to_vec();
+                    shape = vec![1];
+                    result = vec![T::default(); shape.iter().product()];
+                    unsafe {
+                        matmul(1 as i32, 1 as i32, a_shape[0] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
+                    }
+                }
+                else if inputs[0].shape.len() == 2 && inputs[1].shape.len() == 2 {
+                    let a_shape = inputs[0].shape.clone();
+                    let b_shape = inputs[1].shape.clone();
+                    let a = inputs[0].data.clone();
+                    let b = inputs[1].data.clone();
+
+                    shape = vec![a_shape[0], b_shape[1]];
+                    result = vec![T::default(); shape.iter().product()];
+                    unsafe {
+                        matmul(a_shape[0] as i32, b_shape[1] as i32, a_shape[1] as i32, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
+                    }
+                } 
+                else if inputs[0].shape.len() == 3 && inputs[1].shape.len() == 3 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
+                    let a: Array3<T> = a.into_dimensionality::<Ix3>().unwrap();
+                    let b: Array3<T> = b.into_dimensionality::<Ix3>().unwrap();
+
+                    assert!(a.shape()[0] == b.shape()[0]); //batch size
+                    assert!(a.shape()[2] == b.shape()[1]); //inner dimension
+
+                    let batch_size = a.shape()[0];
+                    let m = a.shape()[1];
+                    let n = b.shape()[2];
+
+                    // Initialize the output array
+                    let mut c = Array3::<T>::zeros((batch_size, m, n));
+                    // Perform batched matrix multiplication
+                    for i in 0..batch_size {
+                        let a_slice: Array2<T> = a.index_axis(Axis(0), i).to_owned(); // (m, k)
+                        let b_slice: Array2<T> = b.index_axis(Axis(0), i).to_owned(); // (k, n)
+                        let a_vec: Vec<T> = a_slice.iter().map(|&x| x).collect();
+                        let b_vec: Vec<T> = b_slice.iter().map(|&x| x).collect();
+                        let mut c_vec = vec![T::default(); m * n];
+                        unsafe {
+                            matmul(m as i32, n as i32, a_slice.shape()[1] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, c_vec.as_ptr() as *mut f32); 
+                        }
+                        let c_slice = Array2::<T>::from_shape_vec(Ix2(m, n), c_vec).unwrap();
+                        c.index_axis_mut(Axis(0), i).assign(&c_slice);
+                    }
+                    result = c.iter().map(|&x| x).collect();
+                    shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
+                }
+                else if inputs[0].shape.len() == 4 && inputs[1].shape.len() == 4 {
+                    todo!();
+                }
+                else {
+                    panic!("Matrix multiplication only supported for 2D tensors");
+                }
             }
         }
         //merge graphs

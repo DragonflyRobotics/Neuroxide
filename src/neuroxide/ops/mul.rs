@@ -28,10 +28,8 @@ where
         assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
         let mut a = inputs[0].clone();
         let mut b = inputs[1].clone();
-        println!("{} {}", a, b);
         if a.shape != b.shape {
             // Check for broadcasting
-            println!("Broadcasting");
             if a.shape.len() == 1 {
                 a.shape = b.shape.clone();
                 a.data = vec![a.data[0]; b.data.len()];
@@ -42,7 +40,6 @@ where
                 panic!("Broadcasting not supported");
             }
         }
-        println!("{} {}", a, b);
         let t = a.clone() * b.clone();
         // let db = inputs[0].dtype.clone();
         // db.write().unwrap().insert(t.clone());
