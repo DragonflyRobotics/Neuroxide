@@ -1,21 +1,27 @@
 use std::sync::{Arc, RwLock};
 
-use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}};
+use neuroxide::{ops::{add::AddOp, matmul::MatMulOp, mul::MulOp, pow::PowOp}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use neuroxide::ops::op_generic::Operation;
 
-#[macro_use]
-extern crate neuroxide;
-
 fn main() {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
-    let x = Tensor::new(&db, vec![5.0], vec![1], Device::CPU, true);
-    let c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
-    let c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
-    
-    // let result = x.clone() * (SinOp::forward(&vec![&(c2c.clone()*x.clone())]) - c1c*x.clone()) - CosOp::forward(&vec![&PowOp::forward(&vec![&x.clone(), &c2c.clone()])]) + PowOp::forward(&vec![&c2c.clone(), &x.clone()]); 
-    let result = sub!(add!(x, c1c), c1c);
-    println!("{}", result);
-    let grad = result.backward(None);
-    println!("{}", grad.get(&x.id).unwrap());
+    let a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0];
+    let b: Vec<f32> = vec![5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+    let a_shape = vec![2, 2, 2];
+    let b_shape = vec![2, 2, 3];
 
+    let tensor_db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let c1 = Tensor::new(&tensor_db, vec![6.0; 12], vec![2, 2, 3], Device::CUDA, true);
+    let c2 = Tensor::new(&tensor_db, vec![5.0; 12], vec![2, 2, 3], Device::CUDA, true);
+    let c3 = Tensor::new(&tensor_db, vec![2.0; 12], vec![2, 2, 3], Device::CUDA, true);
+
+
+    let a = Tensor::new(&tensor_db, a, a_shape, Device::CUDA, true);
+    let b = Tensor::new(&tensor_db, b, b_shape, Device::CUDA, false);
+    let c = MatMulOp::forward(&vec![&a, &b]);
+    let d = MulOp::forward(&vec![&c, &c1]);
+    let e = AddOp::forward(&vec![&d, &c2]);
+    let f = PowOp::forward(&vec![&e, &c3]);
+    println!("{}", f);
+    let grad = f.backward(None);
+    println!("{}", grad.get(&a.id).unwrap());
 }

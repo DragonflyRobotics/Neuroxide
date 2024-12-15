@@ -35,6 +35,17 @@ fn forward_macro() {
     }
 }
 
+#[test] 
+fn forward_broadcast() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
+    let c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
+    let c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
+    let result = mul!(c1c, c2c);
+    for i in 0..result.data.len() {
+        assert!(relative_eq!(result.data[i], c1c.data[i] * c2c.data[0], epsilon = f64::EPSILON));
+    }
+}
+
 #[cfg(feature = "cuda")]
 #[test]
 fn forward_cuda() {

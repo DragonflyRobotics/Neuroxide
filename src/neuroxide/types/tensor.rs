@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -22,12 +22,12 @@ pub struct Tensor<T> {
 
 impl<T> Tensor<T> 
 where
-    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + PowOpTrait + LnOpTrait + Num
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + PowOpTrait + LnOpTrait + Num + ndarray::ScalarOperand + ndarray::LinalgScalar
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
         if device == Device::CUDA {
-            assert!(db.read().unwrap().get_dtype() != DTypes::F64);
+            assert!(db.read().unwrap().get_dtype() == DTypes::F32, "CUDA only supports f32");
         }
         let mut graph = GraphMap::new();
         let id = make_node_uid();
@@ -72,6 +72,9 @@ where
             },
             Ops::DivEnum => {
                 DivOp::backward(inputs, Some(dx))
+            },
+            Ops::MatMulEnum => {
+                MatMulOp::backward(inputs, Some(dx))
             },
             _ => panic!("Operation not implemented")
         }
@@ -147,7 +150,11 @@ where
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                         let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                         drop(db);
-                        temp = temp * output;
+                        if temp.shape == output.shape || temp.shape.len() == 1  && output.shape.len() == 1 {
+                            temp = MulOp::forward(&vec![&temp, &output]);
+                        } else {
+                            temp = MatMulOp::forward(&vec![&temp, &output]);
+                        }
                     }
                     // println!("output: ");
                     // println!("grad: ");
@@ -158,9 +165,10 @@ where
             }
             let mut sum = arr[0].clone();
             for i in 1..arr.len() {
-                sum = sum + arr[i].clone();
+                sum = AddOp::forward(&vec![&sum, &arr[i].clone()]);
             }
             grad.get_mut(&leaf).unwrap().data = sum.data;
+            grad.get_mut(&leaf).unwrap().shape = sum.shape;
         }
         grad
     }

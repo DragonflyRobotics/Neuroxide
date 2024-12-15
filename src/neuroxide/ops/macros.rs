@@ -53,3 +53,10 @@ macro_rules! ln {
         neuroxide::ops::ln::LnOp::forward(&vec![&$a])
     };
 }
+
+#[macro_export]
+macro_rules! matmul {
+    ($a: expr, $b: expr) => {
+        neuroxide::ops::matmul::MatMulOp::forward(&vec![&$a, &$b])
+    };
+}

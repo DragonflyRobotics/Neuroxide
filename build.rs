@@ -19,6 +19,7 @@ fn main() {
 
     // Link against the cudart library
     println!("cargo:rustc-link-lib=cudart");
+    println!("cargo:rustc-link-lib=cublas");
 
 
     let cuda_dir = "cuda"; // Replace with your actual directory if different
