@@ -30,10 +30,10 @@ where
         let mut b = inputs[1].clone();
         if a.shape != b.shape {
             // Check for broadcasting
-            if a.shape.len() == 1 {
+            if a.shape[0] == 1 {
                 a.shape = b.shape.clone();
                 a.data = vec![a.data[0]; b.data.len()];
-            } else if inputs[1].shape.len() == 1 {
+            } else if b.shape[0] == 1 {
                 b.shape = inputs[0].shape.clone();
                 b.data = vec![b.data[0]; inputs[0].data.len()];
             } else {

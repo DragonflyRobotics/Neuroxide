@@ -1,14 +1,43 @@
-import torch
+"""
+        let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let layer_1_weights = Tensor::<f32>::new(&db, vec![1.0; 16], vec![1, 16], Device::CPU, true);
+    let layer_1_biases = Tensor::<f32>::new(&db, vec![1.0; 16*16], vec![16, 16], Device::CPU, true);
+    let layer_2_weights = Tensor::<f32>::new(&db, vec![1.0; 16], vec![16, 1], Device::CPU, true);
+    let layer_2_biases = Tensor::<f32>::new(&db, vec![1.0; 16], vec![16, 1], Device::CPU, true);
+    let pow_const = Tensor::<f32>::new(&db, vec![2.0; 16], vec![16, 1], Device::CPU, false);
+    let input = Tensor::<f32>::new(&db, vec![1.0; 16], vec![16, 1], Device::CPU, false);
+    let output = Tensor::<f32>::new(&db, vec![2.0; 16], vec![16, 1], Device::CPU, false);
+    let c = matmul!(input, layer_1_weights) + layer_1_biases;
+    let c = matmul!(c, layer_2_weights) + layer_2_biases;
 
-a = torch.tensor([1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0, 4.0], requires_grad=True)
-b = torch.tensor([5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0], requires_grad=True)
-a = a.reshape(2, 2, 2)
-b = b.reshape(2, 2, 3)
-c = torch.matmul(a, b)
-d = (6*c + 5)**2
+    let loss = pow!(c - output, pow_const);
+    let grad = loss.backward(None);
+    for i in grad.into_iter() {
+        println!("{}", i.1);
+    }
+"""
 
-grad = torch.autograd.grad(d, a, torch.ones_like(c))
-print(grad)
+# import torch
+#
+# layer_1_weights = torch.ones(1, 16).requires_grad_(True)
+# layer_1_biases = torch.ones(16, 16).requires_grad_(True)
+# layer_2_weights = torch.ones(16, 1).requires_grad_(True)
+# layer_2_biases = torch.ones(16, 1).requires_grad_(True)
+# pow_const = torch.ones(16, 1) * 2
+# input = torch.ones(16, 1)
+# output = torch.ones(16, 1) * 2
+# c = torch.matmul(input, layer_1_weights) + layer_1_biases
+# c = torch.matmul(c, layer_2_weights) + layer_2_biases
+# loss = (c - output).pow(pow_const)
+#
+# print(loss)
+# grad = torch.autograd.grad(loss, [layer_1_weights, layer_1_biases, layer_2_weights, layer_2_biases], grad_outputs=torch.ones_like(loss))
+# for i in grad:
+#     print(i)
+import numpy as np
 
-
-
+a = np.ones((3, 5, 16))
+b = np.ones((16))
+c = np.matmul(a, b)
+print(c)
+print(c.shape)

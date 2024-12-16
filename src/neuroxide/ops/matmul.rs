@@ -18,6 +18,44 @@ pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 #[derive(Debug, Clone)]
 pub struct MatMulOp;
 
+fn broadcast(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) {
+    // fill with zeros from left to right 
+    let diff = shape1.len() as i32 - shape2.len() as i32;
+    if diff > 0 {
+        for _ in 0..diff {
+            shape2.insert(0, 1);
+        }
+    } else {
+        for _ in 0..-diff {
+            shape1.insert(0, 1);
+        }
+    }
+
+    for index in 0..shape1.len() {
+        println!("shape1: {}, shape2: {}", shape1[index], shape2[index]);
+        // Safely compute "index - 1"
+        let prev_index = if index > 0 { index - 1 } else { 0 };
+        // Safely compute "index + 1"
+        let next_index = (index + 1).min(shape2.len() - 1);
+
+        println!("index - 1: {}", shape2[prev_index]);
+        println!("index + 1: {}", shape2[next_index]);
+
+        if shape1[index] != shape2[index] {
+            if shape1[index] == 1 {
+                shape1[index] = shape2[index];
+            } else if shape2[index] == 1 {
+                shape2[index] = shape1[index];
+            } else if shape1[index] == shape2[next_index] || shape1[index] == shape2[prev_index] {
+                println!("Warning: Broadcasting shape {:?} to shape {:?}", shape1, shape2);
+            } else {
+                panic!("Incompatible shapes");
+            }
+        }
+    }
+    println!("Broadcasted shape {:?} to shape {:?}", shape1, shape2);
+}
+
 impl<T> Operation<T> for MatMulOp 
 where
     T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + Clone + NumCast + ndarray::ScalarOperand + ndarray::LinalgScalar //+ Not<Output = T>
@@ -26,26 +64,22 @@ where
         assert!(inputs.len() == 2);
         assert!(inputs[0].device == inputs[1].device);
 
+        let mut shape1 = inputs[0].shape.clone();
+        let mut shape2 = inputs[1].shape.clone();
+
+        broadcast(&mut shape1, &mut shape2);
+        println!("Broadcasted shape {:?} to shape {:?}", shape1, shape2);
+
         let result: Vec<T>; // = vec![T::default(); len as usize];
-        let shape: Vec<usize>;
+        let mut shape: Vec<usize>;
         match inputs[0].device {
             Device::CPU => {
-                if inputs[0].shape.len() == 1 && inputs[1].shape.len() == 1 {
-                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
-                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
-                    let mut a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
-                    let mut b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
+                if shape1.len() == 1 && shape2.len() == 1 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
+                    let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
+                    let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
 
-                    if a.shape() != b.shape() {
-                        println!("Needs auto broadcasting");
-                        if a.shape() == [1] {
-                            a = Array1::<T>::from_elem(Ix1(b.shape().to_vec()[0]), a[0]); 
-                        } else if b.shape() == [1] {
-                            b = Array1::<T>::from_elem(Ix1(a.shape().to_vec()[0]), b[0]);
-                        } else {
-                            panic!("Auto broadcasting not supported");
-                        }
-                    }
 
                     let c = a.dot(&b);
                     result = vec![c];
@@ -53,18 +87,18 @@ where
                     // result = c.iter().map(|&x| x).collect();
                     // shape = vec![c.shape()[0], c.shape()[1]];
                 }
-                else if inputs[0].shape.len() == 2 && inputs[1].shape.len() == 2 {
-                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
-                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
+                else if shape1.len() == 2 && shape2.len() == 2 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
                     let a: Array2<T> = a.into_dimensionality::<Ix2>().unwrap();
                     let b: Array2<T> = b.into_dimensionality::<Ix2>().unwrap();
                     let c = a.dot(&b);
                     result = c.iter().map(|&x| x).collect();
                     shape = vec![c.shape()[0], c.shape()[1]];
                 } 
-                else if inputs[0].shape.len() == 3 && inputs[1].shape.len() == 3 {
-                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
-                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
+                else if shape1.len() == 3 && shape2.len() == 3 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
                     let a: Array3<T> = a.into_dimensionality::<Ix3>().unwrap();
                     let b: Array3<T> = b.into_dimensionality::<Ix3>().unwrap();
 
@@ -86,7 +120,7 @@ where
                     result = c.iter().map(|&x| x).collect();
                     shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
                 }
-                else if inputs[0].shape.len() == 4 && inputs[1].shape.len() == 4 {
+                else if shape1.len() == 4 && shape2.len() == 4 {
                     todo!();
                 }
                 else {
@@ -94,46 +128,38 @@ where
                 }
             }
             Device::CUDA => {
-                if inputs[0].shape.len() == 1 && inputs[1].shape.len() == 1 {
-                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
-                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
-                    let mut a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
-                    let mut b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
+                if shape1.len() == 1 && shape2.len() == 1 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
+                    let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
+                    let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
 
-                    if a.shape() != b.shape() {
-                        println!("Needs auto broadcasting");
-                        if a.shape() == [1] {
-                            a = Array1::<T>::from_elem(Ix1(b.shape().to_vec()[0]), a[0]); 
-                        } else if b.shape() == [1] {
-                            b = Array1::<T>::from_elem(Ix1(a.shape().to_vec()[0]), b[0]);
-                        } else {
-                            panic!("Auto broadcasting not supported");
-                        }
-                    }
                     let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
                     let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
                     let a_shape = a.shape().to_vec();
                     shape = vec![1];
                     result = vec![T::default(); shape.iter().product()];
+                    #[cfg(feature = "cuda")]
                     unsafe {
                         matmul(1 as i32, 1 as i32, a_shape[0] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
                     }
                 }
-                else if inputs[0].shape.len() == 2 && inputs[1].shape.len() == 2 {
-                    let a_shape = inputs[0].shape.clone();
-                    let b_shape = inputs[1].shape.clone();
+                else if shape1.len() == 2 && shape2.len() == 2 {
+                    let a_shape = shape1.clone();
+                    let b_shape = shape2.clone();
                     let a = inputs[0].data.clone();
                     let b = inputs[1].data.clone();
 
                     shape = vec![a_shape[0], b_shape[1]];
                     result = vec![T::default(); shape.iter().product()];
+                    #[cfg(feature = "cuda")]
                     unsafe {
                         matmul(a_shape[0] as i32, b_shape[1] as i32, a_shape[1] as i32, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
                     }
                 } 
-                else if inputs[0].shape.len() == 3 && inputs[1].shape.len() == 3 {
-                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
-                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
+                else if shape1.len() == 3 && shape2.len() == 3 {
+                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
                     let a: Array3<T> = a.into_dimensionality::<Ix3>().unwrap();
                     let b: Array3<T> = b.into_dimensionality::<Ix3>().unwrap();
 
@@ -153,6 +179,7 @@ where
                         let a_vec: Vec<T> = a_slice.iter().map(|&x| x).collect();
                         let b_vec: Vec<T> = b_slice.iter().map(|&x| x).collect();
                         let mut c_vec = vec![T::default(); m * n];
+                        #[cfg(feature = "cuda")]
                         unsafe {
                             matmul(m as i32, n as i32, a_slice.shape()[1] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, c_vec.as_ptr() as *mut f32); 
                         }
@@ -162,7 +189,7 @@ where
                     result = c.iter().map(|&x| x).collect();
                     shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
                 }
-                else if inputs[0].shape.len() == 4 && inputs[1].shape.len() == 4 {
+                else if shape1.len() == 4 && shape2.len() == 4 {
                     todo!();
                 }
                 else {
@@ -170,6 +197,8 @@ where
                 }
             }
         }
+        //remove all 1 dims from the right on shape
+        shape = shape.into_iter().rev().skip_while(|&x| x == 1).collect::<Vec<usize>>().into_iter().rev().collect();
         //merge graphs
         let mut result_graph = GraphMap::new();
         let self_graph = &inputs[0].op_chain;

@@ -153,6 +153,8 @@ where
                         if temp.shape == output.shape || temp.shape.len() == 1  && output.shape.len() == 1 {
                             temp = MulOp::forward(&vec![&temp, &output]);
                         } else {
+                            println!("temp: {}", temp);
+                            println!("output: {}", output);
                             temp = MatMulOp::forward(&vec![&temp, &output]);
                         }
                     }
