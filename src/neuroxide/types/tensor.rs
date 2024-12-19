@@ -153,6 +153,7 @@ where
                         if temp.shape == output.shape || temp.shape.len() == 1  && output.shape.len() == 1 {
                             temp = MulOp::forward(&vec![&temp, &output]);
                         } else {
+                            println!("MulOp not implemented for shapes: {:?} and {:?}", temp.shape, output.shape);
                             println!("temp: {}", temp);
                             println!("output: {}", output);
                             temp = MatMulOp::forward(&vec![&temp, &output]);
@@ -206,6 +207,8 @@ impl<T: std::fmt::Debug> std::fmt::Display for Tensor<T> {
         write!(f, "Tensor<{}>(", print_type_of(&self.data[0]))?;
         let mut idx = 0;
         print_recursive(f, &self.shape, &self.data, &mut idx, 0)?;
+        write!(f, ", shape=")?;
+        write!(f, "{:?})", self.shape)?;
         write!(f, "\n")?; 
         Ok(())
     }

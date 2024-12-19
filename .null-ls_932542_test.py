@@ -37,12 +37,7 @@
 import torch
 
 a = torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float, requires_grad=True)
-b = torch.tensor([5, 6, 7], dtype=torch.float, requires_grad=True)
-a = a.view(1, 2, 3)
+b = torch.tensor([5, 6, 7, 8, 9, 10], dtype=torch.float, requires_grad=True)
 c = torch.matmul(a, b)
-print(c)
-grad = torch.autograd.grad(c, [a], grad_outputs=torch.ones_like(c))
-print(grad)
-
-ones = torch.ones_like(c)
-grad_manual = torch.matmul(ones, b)
+c.backward()
+print(a.grad)

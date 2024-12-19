@@ -4,6 +4,7 @@ use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
+use crate::utils::array_utils::broadcast_shapes_matmul;
 use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
 
@@ -18,43 +19,6 @@ pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 #[derive(Debug, Clone)]
 pub struct MatMulOp;
 
-fn broadcast(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) {
-    // fill with zeros from left to right 
-    let diff = shape1.len() as i32 - shape2.len() as i32;
-    if diff > 0 {
-        for _ in 0..diff {
-            shape2.insert(0, 1);
-        }
-    } else {
-        for _ in 0..-diff {
-            shape1.insert(0, 1);
-        }
-    }
-
-    for index in 0..shape1.len() {
-        println!("shape1: {}, shape2: {}", shape1[index], shape2[index]);
-        // Safely compute "index - 1"
-        let prev_index = if index > 0 { index - 1 } else { 0 };
-        // Safely compute "index + 1"
-        let next_index = (index + 1).min(shape2.len() - 1);
-
-        println!("index - 1: {}", shape2[prev_index]);
-        println!("index + 1: {}", shape2[next_index]);
-
-        if shape1[index] != shape2[index] {
-            if shape1[index] == 1 {
-                shape1[index] = shape2[index];
-            } else if shape2[index] == 1 {
-                shape2[index] = shape1[index];
-            } else if shape1[index] == shape2[next_index] || shape1[index] == shape2[prev_index] {
-                println!("Warning: Broadcasting shape {:?} to shape {:?}", shape1, shape2);
-            } else {
-                panic!("Incompatible shapes");
-            }
-        }
-    }
-    println!("Broadcasted shape {:?} to shape {:?}", shape1, shape2);
-}
 
 impl<T> Operation<T> for MatMulOp 
 where
@@ -67,11 +31,10 @@ where
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
 
-        broadcast(&mut shape1, &mut shape2);
+        let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2);
         println!("Broadcasted shape {:?} to shape {:?}", shape1, shape2);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
-        let mut shape: Vec<usize>;
         match inputs[0].device {
             Device::CPU => {
                 if shape1.len() == 1 && shape2.len() == 1 {
@@ -83,7 +46,7 @@ where
 
                     let c = a.dot(&b);
                     result = vec![c];
-                    shape = vec![1];
+                    // shape = vec![1];
                     // result = c.iter().map(|&x| x).collect();
                     // shape = vec![c.shape()[0], c.shape()[1]];
                 }
@@ -94,7 +57,7 @@ where
                     let b: Array2<T> = b.into_dimensionality::<Ix2>().unwrap();
                     let c = a.dot(&b);
                     result = c.iter().map(|&x| x).collect();
-                    shape = vec![c.shape()[0], c.shape()[1]];
+                    // shape = vec![c.shape()[0], c.shape()[1]];
                 } 
                 else if shape1.len() == 3 && shape2.len() == 3 {
                     let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
@@ -118,7 +81,7 @@ where
                         c.index_axis_mut(Axis(0), i).assign(&a_slice.dot(&b_slice));
                     }
                     result = c.iter().map(|&x| x).collect();
-                    shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
+                    // shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
                 }
                 else if shape1.len() == 4 && shape2.len() == 4 {
                     todo!();
@@ -137,7 +100,7 @@ where
                     let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
                     let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
                     let a_shape = a.shape().to_vec();
-                    shape = vec![1];
+                    // shape = vec![1];
                     result = vec![T::default(); shape.iter().product()];
                     #[cfg(feature = "cuda")]
                     unsafe {
@@ -150,7 +113,7 @@ where
                     let a = inputs[0].data.clone();
                     let b = inputs[1].data.clone();
 
-                    shape = vec![a_shape[0], b_shape[1]];
+                    // shape = vec![a_shape[0], b_shape[1]];
                     result = vec![T::default(); shape.iter().product()];
                     #[cfg(feature = "cuda")]
                     unsafe {
@@ -187,7 +150,7 @@ where
                         c.index_axis_mut(Axis(0), i).assign(&c_slice);
                     }
                     result = c.iter().map(|&x| x).collect();
-                    shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
+                    // shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
                 }
                 else if shape1.len() == 4 && shape2.len() == 4 {
                     todo!();
@@ -197,8 +160,7 @@ where
                 }
             }
         }
-        //remove all 1 dims from the right on shape
-        shape = shape.into_iter().rev().skip_while(|&x| x == 1).collect::<Vec<usize>>().into_iter().rev().collect();
+        println!("FINAL SHAPE: {:?}", shape);
         //merge graphs
         let mut result_graph = GraphMap::new();
         let self_graph = &inputs[0].op_chain;
