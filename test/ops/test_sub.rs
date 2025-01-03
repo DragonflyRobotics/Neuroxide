@@ -12,8 +12,8 @@ fn forward() {
     let mut result = SubOp::forward(&vec![&c1c, &c2c]);
     assert_eq!(result.data[0], 9.0);
 
-    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
-    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CPU, false); 
+    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CPU, false);
     result = SubOp::forward(&vec![&c1c, &c2c]);
     for i in 0..result.data.len() {
         println!("{} - {} = {}", c1c.data[i], c2c.data[i], result.data[i]);
@@ -29,8 +29,8 @@ fn forward_macro() {
     let result = sub!(c1c, c2c);
     assert_eq!(result.data[0], 9.0);
 
-    let c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
-    let c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    let c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CPU, false); 
+    let c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CPU, false);
     let result = sub!(c1c, c2c);
     for i in 0..result.data.len() {
         println!("{} - {} = {}", c1c.data[i], c2c.data[i], result.data[i]);
@@ -47,8 +47,8 @@ fn forward_cuda() {
     let mut result = SubOp::forward(&vec![&c1c, &c2c]);
     assert_eq!(result.data[0], 9.0);
 
-    c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CUDA, false); 
-    c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CUDA, false);
+    c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CUDA, false); 
+    c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CUDA, false);
     result = SubOp::forward(&vec![&c1c, &c2c]);
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] - c2c.data[i], epsilon = f32::EPSILON));

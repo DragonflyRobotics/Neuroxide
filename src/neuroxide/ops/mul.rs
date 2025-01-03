@@ -1,8 +1,10 @@
+use ndarray::ArrayD;
 use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
+use crate::utils::array_utils::broadcast_shapes_linear;
 use crate::utils::node_uid::make_node_uid;
 use std::ops::{Add, Mul};
 
@@ -23,24 +25,9 @@ where
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
-        // assert!(inputs[0].shape == inputs[1].shape);
         assert!(inputs[0].device == inputs[1].device);
         assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
-        let mut a = inputs[0].clone();
-        let mut b = inputs[1].clone();
-        if a.shape != b.shape {
-            // Check for broadcasting
-            if a.shape[0] == 1 {
-                a.shape = b.shape.clone();
-                a.data = vec![a.data[0]; b.data.len()];
-            } else if b.shape[0] == 1 {
-                b.shape = inputs[0].shape.clone();
-                b.data = vec![b.data[0]; inputs[0].data.len()];
-            } else {
-                panic!("Broadcasting not supported");
-            }
-        }
-        let t = a.clone() * b.clone();
+        let t = inputs[0].clone() * inputs[1].clone();
         // let db = inputs[0].dtype.clone();
         // db.write().unwrap().insert(t.clone());
         // drop(db);
@@ -66,22 +53,39 @@ where
     type Output = Tensor<T>;
 
     fn mul(self, other: Tensor<T>) -> Tensor<T> {
-        assert!(self.shape == other.shape);
         assert!(self.device == other.device);
+        
+        let mut a = self.clone();
+        let mut b = other.clone();
+        let mut a_arr = ArrayD::from_shape_vec(a.shape.clone(), a.data.clone()).unwrap();
+        let mut b_arr = ArrayD::from_shape_vec(b.shape.clone(), b.data.clone()).unwrap();
+        let res = broadcast_shapes_linear(&mut a.shape, &mut b.shape);
+        if res.is_err() {
+            panic!("Shapes are not broadcastable");
+        }
+        assert!(a.shape == b.shape);
+        a_arr = a_arr.broadcast(a.shape).unwrap().to_owned();
+        b_arr = b_arr.broadcast(b.shape).unwrap().to_owned();
+        let final_shape: Vec<usize> = a_arr.shape().iter().map(|x| *x as usize).collect();
+        
+        
 
         let result: Vec<T>;//vec![T::default(); len as usize];
         match self.device {
             Device::CPU => {
-                result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a * *b).collect();
+                let res = a_arr * b_arr;
+                result = res.iter().map(|&x| x.clone()).collect();
+                // result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a * *b).collect();
             }
             Device::CUDA => {
                 #[cfg(feature = "cuda")]
                 unsafe {
-                    let len: i32 = self.data.len() as i32;
-                    let a: Vec<f32> = self.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-                    let b: Vec<f32> = other.data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
+                    let a_flat = a_arr.as_slice().unwrap();
+                    let b_flat = b_arr.as_slice().unwrap();
+                    
+                    let len: i32 = a_flat.len() as i32;
                     let mut r = vec![0.0; len as usize];
-                    mul_kernel(len, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, r.as_mut_ptr());
+                    mul_kernel(len, a_flat.as_ptr() as *mut f32, b_flat.as_ptr() as *mut f32, r.as_mut_ptr());
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
                 }
 
@@ -122,7 +126,7 @@ where
         let t = Tensor {
             id: result_id,
             data: result,
-            shape: self.shape.clone(),
+            shape: final_shape,
             device: self.device,
             op: Ops::MulEnum,
             requires_grad: self.requires_grad || other.requires_grad,

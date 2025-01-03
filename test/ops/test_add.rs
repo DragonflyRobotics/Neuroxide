@@ -12,8 +12,8 @@ fn forward() {
     let mut result = AddOp::forward(&vec![&c1c, &c2c]);
     assert_eq!(result.data[0], 21.0);
 
-    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
-    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CPU, false); 
+    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CPU, false);
     result = AddOp::forward(&vec![&c1c, &c2c]);
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] + c2c.data[i], epsilon = f64::EPSILON));
@@ -28,8 +28,8 @@ fn forward_macro() {
     let mut result = add!(c1c, c2c);
     assert_eq!(result.data[0], 21.0);
 
-    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CPU, false); 
-    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CPU, false);
+    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CPU, false); 
+    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CPU, false);
     result = add!(c1c, c2c);
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] + c2c.data[i], epsilon = f64::EPSILON));
@@ -45,8 +45,8 @@ fn forward_cuda() {
     let mut result = AddOp::forward(&vec![&c1c, &c2c]);
     assert_eq!(result.data[0], 21.0);
 
-    c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1, 12.2], vec![2,2], Device::CUDA, false); 
-    c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1, 2.2], vec![2,2], Device::CUDA, false);
+    c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CUDA, false); 
+    c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CUDA, false);
     result = AddOp::forward(&vec![&c1c, &c2c]);
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] + c2c.data[i], epsilon = f32::EPSILON));

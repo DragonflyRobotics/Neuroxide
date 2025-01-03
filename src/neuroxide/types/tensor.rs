@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::{array_utils::{broadcast_shapes_linear, broadcast_shapes_matmul}, types::print_type_of}};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -86,7 +86,7 @@ where
             let db = self.dtype.read().unwrap();
             match dx {
                 Some(x) => {
-                    println!("dx: {:?}", x);
+                    // println!("dx: {:?}", x);
                     for node in x {
                         all_leaves.push(node);
                     }
@@ -148,15 +148,27 @@ where
                             // println!("inputs: ");
                         }
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
+                        let opType = db.get(p[i]).unwrap().op.clone();
+                        let input_shapes = inputs.iter().map(|x| x.shape.len()).collect::<Vec<_>>();
                         let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                        // println!("output: {}", output);
+                        let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();
                         drop(db);
-                        if temp.shape == output.shape || temp.shape.len() == 1  && output.shape.len() == 1 {
-                            temp = MulOp::forward(&vec![&temp, &output]);
+                        if let Ops::MatMulEnum = opType {
+                           // output is b_t and temp is downstream so follow upstream dot b_t
+                           if input_shapes[0] > 1 || input_shapes[1] > 1 {
+                               // println!("temp: {}", temp);
+                               // println!("output: {}", output);
+                               if grad_index == 0 {
+                                   temp = MatMulOp::forward(&vec![&temp, &output]);
+                               } else {
+                                   temp = MatMulOp::forward(&vec![&output, &temp]);
+                               }
+                           } else {
+                               temp = MulOp::forward(&vec![&output, &temp]);
+                           }
                         } else {
-                            println!("MulOp not implemented for shapes: {:?} and {:?}", temp.shape, output.shape);
-                            println!("temp: {}", temp);
-                            println!("output: {}", output);
-                            temp = MatMulOp::forward(&vec![&temp, &output]);
+                            temp = MulOp::forward(&vec![&output, &temp]);
                         }
                     }
                     // println!("output: ");

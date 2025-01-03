@@ -1,4 +1,6 @@
-pub fn broadcast_shapes_linear(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) {
+pub fn broadcast_shapes_linear(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) -> Result<(), ()> {
+    println!("{:?}", shape1);
+    println!("{:?}", shape2);
     // fill with zeros from left to right 
     let diff = shape1.len() as i32 - shape2.len() as i32;
     if diff > 0 {
@@ -18,20 +20,21 @@ pub fn broadcast_shapes_linear(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
             } else if shape2[index] == 1 {
                 shape2[index] = shape1[index];
             } else {
-                panic!("Incompatible shapes");
+                return Err(());
             }
         }
     }
+    return Ok(());
 }
 
-pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) -> Vec<usize> {
-    println!("Got shapes: {:?} and {:?}", shape1, shape2);
+pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>, need_consise: bool) -> Result<Vec<usize>, ()> {
+    // println!("Got shapes: {:?} and {:?}", shape1, shape2);
     let min_dim = std::cmp::min(shape1.len(), shape2.len());
     let mut result_shape;
 
     // check for any 0s in the shape
     if shape1.contains(&0) || shape2.contains(&0) {
-        panic!("Invalid shape");
+        return Err(());
     }
     
     if shape1.len() == shape2.len() { // same shape so no expansion needed
@@ -43,12 +46,12 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
                 } else if shape2[0] == 1 {
                     shape2[0] = shape1[0];
                 } else {
-                    panic!("Incompatible shapes");
+                    return Err(());
                 }
             }
         } else if dims == 2 {
             if shape1[1] != shape2[0] {
-                panic!("Incompatible shapes");
+                return Err(());
             }
         } else if dims >= 3 {
             for i in 0..dims - 2 {
@@ -58,12 +61,12 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
                     } else if shape2[i] == 1 {
                         shape2[i] = shape1[i];
                     } else {
-                        panic!("Incompatible shapes");
+                        return Err(());
                     }
                 }
             }
             if shape1[shape1.len()-1] != shape2[shape2.len()-2] {
-                panic!("Incompatible shapes");
+                return Err(());
             }
         }
         result_shape = vec![0; dims];
@@ -105,12 +108,12 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
                 } else if shape2[index] == 1 {
                     shape2[index] = shape1[index];
                 } else {
-                    panic!("Incompatible shapes");
+                    return Err(());
                 }
             }
         }
         if shape1[shape1.len()-1] != shape2[shape2.len()-2] {
-            panic!("Incompatible shapes");
+            return Err(());
         }
         result_shape = vec![0; shape1.len()];
         for i in 0..shape1.len()-2 {
@@ -119,15 +122,15 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
         }
         result_shape[shape1.len()-2] = shape1[shape1.len()-2];
         result_shape[shape1.len()-1] = shape2[shape2.len()-1];
-        if reduce_dims {
+        if reduce_dims && need_consise {
             result_shape.pop();
         }
     }
         
 
-    println!("{:?}", shape1);
-    println!("{:?}", shape2);
-    println!("{:?}", result_shape);
-    result_shape
+    // println!("{:?}", shape1);
+    // println!("{:?}", shape2);
+    // println!("{:?}", result_shape);
+    return Ok(result_shape);
 }
 
