@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
 use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::{array_utils::{broadcast_shapes_linear, broadcast_shapes_matmul}, types::print_type_of}};
+use ndarray::{ArrayD, IxDyn};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
@@ -193,8 +194,36 @@ where
         self.op_chain.add_node(self.id);
         self.op_head = self.id;
     }
-}
+    
+    pub fn t(&self) -> Tensor<T> { // TODO: Should I change OpChain?
+        let b_arr = ArrayD::from_shape_vec(IxDyn(&self.shape), self.data.clone()).unwrap();
+        let b_shape = b_arr.shape();
+        let b_t: ArrayD<T>;
+        let b_t_shape: Vec<usize>;
 
+        if b_shape.len() == 1 {
+            b_t = b_arr; 
+            b_t_shape = b_t.shape().to_vec();
+        }
+        else if b_shape.len() == 2 {
+            b_t = b_arr.t().to_owned();
+            b_t_shape = b_t.shape().to_vec();
+        } else if b_shape.len() == 3 {
+            b_t = b_arr.permuted_axes(IxDyn(&[0, 2, 1])).to_owned();
+            b_t_shape = b_t.shape().to_vec();
+        } else if b_shape.len() == 4 {
+            todo!();
+        } else {
+            panic!("Matrix multiplication grad only supported for <=3D tensors");
+        }
+        return Tensor {
+            id: make_node_uid(),
+            data: b_t.iter().map(|x| *x).collect(),
+            shape: b_t_shape,
+            ..self.clone()
+        }
+    }
+}
 
 impl<T: std::fmt::Debug> std::fmt::Display for Tensor<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

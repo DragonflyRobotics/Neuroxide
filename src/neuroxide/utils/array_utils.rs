@@ -1,6 +1,6 @@
 pub fn broadcast_shapes_linear(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) -> Result<(), ()> {
-    println!("{:?}", shape1);
-    println!("{:?}", shape2);
+    // println!("{:?}", shape1);
+    // println!("{:?}", shape2);
     // fill with zeros from left to right 
     let diff = shape1.len() as i32 - shape2.len() as i32;
     if diff > 0 {
