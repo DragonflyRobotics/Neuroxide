@@ -23,14 +23,17 @@ path = "bench/bench.rs"
 [dependencies]
 approx = "0.5.1"
 libc = "0.2.159"
-ndarray = "0.16.1"
-ndarray-linalg = {version = "0.16.0", features = ["openblas"]}
+ndarray = { version = "0.16.0", features = ["blas"] }
+blas-src = { version = "0.10", features = ["blis"] }
+# openblas-src = { version = "0.10", features = ["cblas", "system"] }
 num = "0.4.3"
 once_cell = "1.19.0"
 petgraph = "0.6.5"
 rand = "0.8.5"
+pkg-config = "0.3.31"
 
 [build-dependencies]
+pkg-config = "0.3.31"
 cc = "1.1.30"
 
 [features]

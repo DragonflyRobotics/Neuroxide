@@ -5,6 +5,7 @@ use ndarray::{ArrayD, IxDyn};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
+use rand::Rng;
 
 use super::tensordb::{assert_types, TensorDB};
 
@@ -46,6 +47,22 @@ where
         };
         db.write().unwrap().insert(t.clone());
         t
+    }
+
+    pub fn new_ones(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        let data = vec![T::from(1).unwrap(); shape.iter().product()];
+        Tensor::new(db, data, shape, device, requires_grad)
+    }
+
+    pub fn new_zeros(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        let data = vec![T::from(0).unwrap(); shape.iter().product()];
+        Tensor::new(db, data, shape, device, requires_grad)
+    }
+
+    pub fn new_uniform(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        let mut rng = rand::thread_rng();
+        let data = (0..shape.iter().product()).map(|_| T::from(rng.gen::<f32>()).unwrap()).collect(); 
+        Tensor::new(db, data, shape, device, requires_grad)
     }
 
     fn match_ops(&self, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
