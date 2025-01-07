@@ -1,5 +1,5 @@
 extern crate cc;
-extern crate pkg_config;
+
 #[cfg(feature = "cuda")] fn main() { use std::env; use std::path::PathBuf; use std::fs; // Check for the CUDA toolkit installation path
     let cuda_path = match env::var("CUDA_PATH") {
         Ok(path) => PathBuf::from(path),
@@ -58,12 +58,4 @@ extern crate pkg_config;
 fn main() {
     // Do nothing
     // link openblas
-    println!("cargo:rustc-link-lib=openblas");
-    println!("cargo:rustc-link-lib=blas");
-    println!("cargo:rustc-link-lib=dylib=cblas");
-    println!("cargo:rustc-link-lib=dylib=lapack");
-    println!("cargo:rustc-link-lib=dylib=openblas");
-
-    let probe = pkg_config::Config::new().probe("openblas");
-    println!("=============================================================={:?}", probe);
 }
