@@ -21,7 +21,7 @@ fn main() {
     let mut layer_2_biases = Tensor::<f32>::new(&db, vec![1.0; 16], vec![16, 1], Device::CUDA, true);
     let pow_const = Tensor::<f32>::new(&db, vec![2.0; 16], vec![16, 1], Device::CUDA, false);
     let lr = Tensor::<f32>::new(&db, vec![0.0000001], vec![1], Device::CUDA, false);
-    for epoch in 0..600 {
+    for iteration in 0..600 {
         let num: f32 = rand::thread_rng().gen_range(0..100) as f32; 
         let input = Tensor::<f32>::new(&db, vec![num; 16], vec![16, 1], Device::CUDA, false);
         let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![16, 1], Device::CUDA, false);
@@ -30,7 +30,6 @@ fn main() {
         let c = add!(matmul!(c, layer_2_weights), layer_2_biases);
         let loss = pow!(c - output, pow_const);
         
-        println!("Epoch: {} Loss: {}", epoch, loss);
         let grad = loss.backward(None);
         
         layer_1_weights = layer_1_weights.clone() - grad.get(&layer_1_weights.id).unwrap().clone() * lr.clone();
@@ -44,6 +43,7 @@ fn main() {
         
         layer_2_biases = layer_2_biases.clone() - grad.get(&layer_2_biases.id).unwrap().clone() * lr.clone();
         layer_2_biases.clear_graph();
+        println!("Epoch: {} Loss: {}", iteration, loss);
    } 
    
    let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16, 1], Device::CUDA, false);
