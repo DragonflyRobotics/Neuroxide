@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::{array_utils::{broadcast_shapes_linear, broadcast_shapes_matmul}, types::print_type_of}};
+use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use ndarray::{ArrayD, IxDyn};
 use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
@@ -149,13 +149,13 @@ where
                             // println!("inputs: ");
                         }
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
-                        let opType = db.get(p[i]).unwrap().op.clone();
+                        let op_type = db.get(p[i]).unwrap().op.clone();
                         let input_shapes = inputs.iter().map(|x| x.shape.len()).collect::<Vec<_>>();
                         let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                         // println!("output: {}", output);
                         let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();
                         drop(db);
-                        if let Ops::MatMulEnum = opType {
+                        if let Ops::MatMulEnum = op_type {
                            // output is b_t and temp is downstream so follow upstream dot b_t
                            if input_shapes[0] > 1 || input_shapes[1] > 1 {
                                // println!("temp: {}", temp);

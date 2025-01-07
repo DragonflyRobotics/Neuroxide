@@ -29,6 +29,7 @@ fn main() {
         let c = add!(matmul!(input, layer_1_weights), layer_1_biases);
         let c = add!(matmul!(c, layer_2_weights), layer_2_biases);
         let loss = pow!(c - output, pow_const);
+        
         println!("Epoch: {} Loss: {}", epoch, loss);
         let grad = loss.backward(None);
         

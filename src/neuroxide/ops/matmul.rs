@@ -1,4 +1,4 @@
-use ndarray::{Array, Array1, Array2, Array3, ArrayD, Axis, Ix1, Ix2, Ix3, IxDyn};
+use ndarray::{Array1, Array2, Array3, ArrayD, Axis, Ix1, Ix2, Ix3, IxDyn};
 use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
@@ -102,31 +102,27 @@ where
             }
             Device::CUDA => {
                 if shape1.len() == 1 && shape2.len() == 1 {
-                    let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
-                    let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
-                    let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
-                    let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
-
-                    let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
-                    let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
-                    let a_shape = a.shape().to_vec();
-                    // shape = vec![1];
                     result = vec![T::default(); shape.iter().product()];
                     #[cfg(feature = "cuda")]
                     unsafe {
+                        let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                        let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
+                        let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
+                        let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
+                        let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
+                        let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
+                        let a_shape = a.shape().to_vec();
                         matmul(1 as i32, 1 as i32, a_shape[0] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
                     }
                 }
                 else if shape1.len() == 2 && shape2.len() == 2 {
-                    let a_shape = shape1.clone();
-                    let b_shape = shape2.clone();
-                    let a = inputs[0].data.clone();
-                    let b = inputs[1].data.clone();
-
-                    // shape = vec![a_shape[0], b_shape[1]];
                     result = vec![T::default(); shape.iter().product()];
                     #[cfg(feature = "cuda")]
                     unsafe {
+                        let a_shape = shape1.clone();
+                        let b_shape = shape2.clone();
+                        let a = inputs[0].data.clone();
+                        let b = inputs[1].data.clone();
                         matmul(a_shape[0] as i32, b_shape[1] as i32, a_shape[1] as i32, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
                     }
                 } 
@@ -147,13 +143,13 @@ where
                     let mut c = Array3::<T>::zeros((batch_size, m, n));
                     // Perform batched matrix multiplication
                     for i in 0..batch_size {
-                        let a_slice: Array2<T> = a.index_axis(Axis(0), i).to_owned(); // (m, k)
-                        let b_slice: Array2<T> = b.index_axis(Axis(0), i).to_owned(); // (k, n)
-                        let a_vec: Vec<T> = a_slice.iter().map(|&x| x).collect();
-                        let b_vec: Vec<T> = b_slice.iter().map(|&x| x).collect();
-                        let mut c_vec = vec![T::default(); m * n];
+                        let c_vec = vec![T::default(); m * n];
                         #[cfg(feature = "cuda")]
                         unsafe {
+                            let a_slice: Array2<T> = a.index_axis(Axis(0), i).to_owned(); // (m, k)
+                            let b_slice: Array2<T> = b.index_axis(Axis(0), i).to_owned(); // (k, n)
+                            let a_vec: Vec<T> = a_slice.iter().map(|&x| x).collect();
+                            let b_vec: Vec<T> = b_slice.iter().map(|&x| x).collect();
                             matmul(m as i32, n as i32, a_slice.shape()[1] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, c_vec.as_ptr() as *mut f32); 
                         }
                         let c_slice = Array2::<T>::from_shape_vec(Ix2(m, n), c_vec).unwrap();

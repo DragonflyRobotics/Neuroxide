@@ -89,7 +89,8 @@ where
         let mut b = other.clone();
         let mut a_arr = ArrayD::from_shape_vec(a.shape.clone(), a.data.clone()).unwrap();
         let mut b_arr = ArrayD::from_shape_vec(b.shape.clone(), b.data.clone()).unwrap();
-        broadcast_shapes_linear(&mut a.shape, &mut b.shape);
+        let res = broadcast_shapes_linear(&mut a.shape, &mut b.shape);
+        res.unwrap();
         assert!(a.shape == b.shape);
         a_arr = a_arr.broadcast(a.shape).unwrap().to_owned();
         b_arr = b_arr.broadcast(b.shape).unwrap().to_owned();

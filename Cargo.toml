@@ -34,5 +34,8 @@ rand = "0.8.5"
 cc = "1.1.30"
 
 [features]
-default = []
 cuda = []
+default = []
+
+[toolchain]
+channel = "stable"
