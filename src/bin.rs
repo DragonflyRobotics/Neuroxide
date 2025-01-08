@@ -1,10 +1,9 @@
+extern crate blas_src;
 use std::{sync::{Arc, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
 use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}};
 use neuroxide::ops::op_generic::Operation;
 use rand::Rng;
-
-extern crate blas_src;
 
 #[macro_use]
 extern crate neuroxide;
@@ -16,7 +15,7 @@ extern crate neuroxide;
 // TODO: Add more operations
 
 fn main() {
-    blas_src::blas_set_num_threads(4);
+    // blas_src::blas_set_num_threads(4);
     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let mut layer_1_weights = Tensor::<f32>::new_uniform(&db, vec![1, 16], Device::CPU, true);
@@ -47,7 +46,7 @@ fn main() {
 
         layer_2_biases = layer_2_biases.clone() - grad.get(&layer_2_biases.id).unwrap().clone() * lr.clone();
         layer_2_biases.clear_graph();
-        println!("Epoch: {} Loss: {}", iteration, loss);
+        // println!("Epoch: {} Loss: {}", iteration, loss);
     } 
 
     let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16, 1], Device::CPU, false);

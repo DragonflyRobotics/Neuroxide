@@ -10,10 +10,10 @@ use rand::Rng;
 use super::tensordb::{assert_types, TensorDB};
 
 #[derive(Clone)]
-pub struct Tensor<T, const N: usize, const M: usize> {
+pub struct Tensor<T> {
     pub id: i32,
-    pub data: [T; N],
-    pub shape: [usize; M],
+    pub data: Vec<T>,
+    pub shape: Vec<usize>,
     pub device: Device,
     pub op: Ops,
     pub requires_grad: bool,
@@ -22,11 +22,11 @@ pub struct Tensor<T, const N: usize, const M: usize> {
     pub dtype: Arc<RwLock<TensorDB<T>>>
 }
 
-impl<T, const N: usize, const M: usize> Tensor<T, N, M> 
+impl<T> Tensor<T> 
 where
     T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + PowOpTrait + LnOpTrait + Num + ndarray::ScalarOperand + ndarray::LinalgScalar
 {
-    pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: [T; N], shape: [usize; M], device: Device, requires_grad: bool) -> Tensor<T, N, M> {
+    pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
         if device == Device::CUDA {
             assert!(db.read().unwrap().get_dtype() == DTypes::F32, "CUDA only supports f32");
@@ -49,23 +49,21 @@ where
         t
     }
 
-    // pub fn new_ones(db: &Arc<RwLock<TensorDB<T>>>, shape: [usize; M], device: Device, requires_grad: bool) -> Tensor<T, N, M> {
-    //     let size = shape.iter().product();
-    //     let data: Box<[T]> = vec![T::from(1).unwrap(); size].into_boxed_slice();
-    //     let data: [T; N] = [T::from(1).unwrap(); shape.iter().product()]; 
-    //     Tensor::new(db, data, shape, device, requires_grad)
-    // }
-    //
-    // pub fn new_zeros(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
-    //     let data = vec![T::from(0).unwrap(); shape.iter().product()];
-    //     Tensor::new(db, data, shape, device, requires_grad)
-    // }
-    //
-    // pub fn new_uniform(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
-    //     let mut rng = rand::thread_rng();
-    //     let data = (0..shape.iter().product()).map(|_| T::from(rng.gen::<f32>()).unwrap()).collect(); 
-    //     Tensor::new(db, data, shape, device, requires_grad)
-    // }
+    pub fn new_ones(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        let data = vec![T::from(1).unwrap(); shape.iter().product()];
+        Tensor::new(db, data, shape, device, requires_grad)
+    }
+
+    pub fn new_zeros(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        let data = vec![T::from(0).unwrap(); shape.iter().product()];
+        Tensor::new(db, data, shape, device, requires_grad)
+    }
+
+    pub fn new_uniform(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
+        let mut rng = rand::thread_rng();
+        let data = (0..shape.iter().product()).map(|_| T::from(rng.gen::<f32>()).unwrap()).collect(); 
+        Tensor::new(db, data, shape, device, requires_grad)
+    }
 
     fn match_ops(&self, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         match d.op {
