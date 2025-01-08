@@ -52,10 +52,16 @@ extern crate cc;
     println!("cargo::rerun-if-changed=build.rs");
     println!("cargo::rerun-if-changed={}", cuda_dir);
     println!("cargo:rustc-check-cfg=cfg(tarpaulin_include)");
+    
+    // OpenBLAS
+    println!("cargo:rustc-link-search=native=/usr/lib64"); // Path to the OpenBLAS library
+    println!("cargo:rustc-link-lib=dylib=openblas");      // Link with the OpenBLAS dynamic library
 }
 
 #[cfg(not(feature = "cuda"))]
 fn main() {
     // Do nothing
     // link openblas
+    println!("cargo:rustc-link-search=native=/usr/lib64"); // Path to the OpenBLAS library
+    println!("cargo:rustc-link-lib=dylib=openblas");      // Link with the OpenBLAS dynamic library
 }
