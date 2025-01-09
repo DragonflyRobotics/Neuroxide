@@ -24,7 +24,8 @@ path = "bench/bench.rs"
 approx = "0.5.1"
 libc = "0.2.159"
 num = "0.4.3"
-ndarray = { version = "0.16.0", features = ["matrixmultiply-threading"] }
+ndarray = { version = "0.16.0", features = ["matrixmultiply-threading", "blas"] }
+blas-src = { version = "0.10", features = ["blis"] }
 once_cell = "1.19.0"
 petgraph = "0.6.5"
 rand = "0.8.5"
