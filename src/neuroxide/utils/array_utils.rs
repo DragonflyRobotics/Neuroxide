@@ -82,14 +82,29 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>,
         }
     } else { // Shape lengths are not the same and expansion needed
         let mut reduce_dims = false;
+        println!("{:?} {:?}", shape1, shape2);
         if min_dim == 1 {
             if shape1.len() == 1 {
-                shape1.insert(0, 1);
+                if shape1[0] == shape2[shape2.len()-1] {
+                    shape1.push(1);
+                    reduce_dims = true;
+                } else if shape1[0] == shape2[shape2.len()-2] {
+                    shape1.insert(0, 1);
+                } else {
+                    return Err(());
+                }
             } else {
-                shape2.push(1);
-                reduce_dims = true;
+                if shape2[0] == shape1[shape1.len()-1] {
+                    shape2.push(1);
+                    reduce_dims = true;
+                } else if shape2[0] == shape1[shape1.len()-2] {
+                    shape2.insert(0, 1);
+                } else {
+                    return Err(());
+                }
             }
         }
+        println!("{:?} {:?}", shape1, shape2);
         let diff = shape1.len() as i32 - shape2.len() as i32;
         if diff > 0 {
             for _ in 0..diff {
@@ -100,6 +115,7 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>,
                 shape1.insert(0, 1);
             }
         }
+        println!("{:?} {:?}", shape1, shape2);
         assert_eq!(shape1.len(), shape2.len());
         for index in 0..shape1.len()-2 {
             if shape1[index] != shape2[index] {
@@ -112,6 +128,7 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>,
                 }
             }
         }
+        println!("{:?} {:?}", shape1, shape2);
         if shape1[shape1.len()-1] != shape2[shape2.len()-2] {
             return Err(());
         }
