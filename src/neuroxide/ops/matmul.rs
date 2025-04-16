@@ -35,7 +35,7 @@ where
         let mut b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
         
         let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
-        println!("{:?} X {:?} --> {:?}", shape1, shape2, shape);
+        // println!("{:?} X {:?} --> {:?}", shape1, shape2, shape);
         let a_option = a.broadcast(shape1.clone());
         if a_option.is_none() {
             a = a.to_shape(IxDyn(&shape1)).unwrap().to_owned();
@@ -48,6 +48,8 @@ where
         } else {
             b = b_option.unwrap().to_owned();
         }
+
+        // println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
         match inputs[0].device {

@@ -137,8 +137,8 @@ pub fn broadcast_shapes_linear(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
 fn mat_broadcast(shape1: &[usize], shape2: &[usize]) -> Result<(Vec<usize>, i8, Vec<usize>, Vec<usize>), ()> {
     let rank1 = shape1.len();
     let rank2 = shape2.len();
-    let mut mod1 = shape1.clone().to_vec();
-    let mut mod2 = shape2.clone().to_vec();
+    let mut mod1 = shape1.to_vec();
+    let mut mod2 = shape2.to_vec();
     if rank1 == 1 {
         if rank2 == 1 { // [z] X [z] = [1] -> []
             if shape1[0] == shape2[0] {
@@ -174,20 +174,21 @@ fn mat_broadcast(shape1: &[usize], shape2: &[usize]) -> Result<(Vec<usize>, i8, 
 }
 
 pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) -> Result<(Vec<usize>, i8), ()> {
-    println!("Got shapes: {:?} and {:?}", shape1, shape2);
+    // println!("Got shapes {:?} and {:?}", shape1, shape2);
     if shape1.len() <=2 && shape2.len() <= 2 {
         let res = mat_broadcast(shape1, shape2).unwrap();
+        *shape1 = res.2;
+        *shape2 = res.3;
         return Ok((res.0, res.1));
     }
     let mut temp1 = shape1.clone();
     let mut temp2 = shape2.clone();
-    for i in 0..(temp1.len() as i32 -2).max(0) {
+    for _ in 0..(temp1.len() as i32 -2).max(0) {
         temp1.remove(0);
     }
-    for i in 0..(temp2.len() as i32 -2).max(0) {
+    for _ in 0..(temp2.len() as i32 -2).max(0) {
         temp2.remove(0);
     }
-    println!("Temp shapes: {:?} and {:?}", temp1, temp2);
     let matrix_result = mat_broadcast(&temp1, &temp2);
     let matrix_res = match matrix_result {
         Ok((shape, reduce, t1, t2)) => {
@@ -199,9 +200,6 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
     };
     temp1 = matrix_res.clone().2;
     temp2 = matrix_res.clone().3;
-    println!("Matrix Result: {:?}", matrix_res);
-    println!("Temp shapes: {:?} and {:?}", temp1, temp2);
-
 
     if shape1.len() > shape2.len() {
         let diff = shape1.len() - shape2.len();
@@ -231,7 +229,5 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
 
     let mut final_shape = shape1.clone();
     final_shape.splice(final_shape.len()-2.., matrix_res.0);
-    println!("Got shapes: {:?} and {:?}", shape1, shape2);
-    println!("Final shape: {:?}", final_shape);
     Ok((final_shape, 0))
 }
