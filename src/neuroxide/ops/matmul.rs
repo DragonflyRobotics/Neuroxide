@@ -34,8 +34,8 @@ where
         let mut a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
         let mut b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
         
-        let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2, false).unwrap();
-        // println!("{:?} --> {:?}", shape1, shape2);
+        let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
+        println!("{:?} X {:?} --> {:?}", shape1, shape2, shape);
         let a_option = a.broadcast(shape1.clone());
         if a_option.is_none() {
             a = a.to_shape(IxDyn(&shape1)).unwrap().to_owned();
@@ -227,7 +227,7 @@ where
 
         let grad_index = inputs.iter().position(|&x| x.id == grad.unwrap().id).unwrap();
         let mut b_arr = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1-grad_index].shape), inputs[1-grad_index].data.clone()).unwrap();
-        let _ = broadcast_shapes_matmul(&mut shape1, &mut shape2, false);
+        let _ = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
         let mul_shapes = [shape1, shape2];
         let b_arr_option = b_arr.broadcast(mul_shapes[1-grad_index].clone());
         if b_arr_option.is_none() {
