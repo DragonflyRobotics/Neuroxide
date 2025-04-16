@@ -1,13 +1,12 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, f_to_i_ops::{CosOpTrait, LnOpTrait, PowOpTrait, SinOpTrait}, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
+use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use ndarray::{ArrayD, IxDyn};
-use num::{Num, NumCast};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
 use rand::Rng;
 
-use super::tensordb::{assert_types, TensorDB};
+use super::{tensordb::{assert_types, TensorDB}, T::TensorElement};
 
 #[derive(Clone)]
 pub struct Tensor<T> {
@@ -24,7 +23,7 @@ pub struct Tensor<T> {
 
 impl<T> Tensor<T> 
 where
-    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + SinOpTrait + CosOpTrait + PowOpTrait + LnOpTrait + Num + ndarray::ScalarOperand + ndarray::LinalgScalar
+    T: TensorElement
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);

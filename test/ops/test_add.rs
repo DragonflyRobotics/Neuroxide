@@ -1,5 +1,4 @@
 use std::sync::{Arc, RwLock};
-
 use neuroxide::{ops::{add::AddOp, mul::MulOp, op_generic::Operation as _}, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use approx::relative_eq;
 

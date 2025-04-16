@@ -4,9 +4,9 @@ use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
+use crate::types::T::TensorElement;
 use crate::utils::array_utils::broadcast_shapes_linear;
 use crate::utils::node_uid::make_node_uid;
-use std::ops::{Add, Mul, Sub};
 
 
 #[cfg(feature = "cuda")]
@@ -23,7 +23,7 @@ pub struct SubOp;
 
 impl<T> Operation<T> for SubOp
 where
-    T: Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast
+    T: TensorElement
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);

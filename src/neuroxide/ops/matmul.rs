@@ -1,12 +1,11 @@
 use ndarray::{Array1, Array2, Array3, ArrayD, Axis, Ix1, Ix2, Ix3, IxDyn};
-use num::NumCast;
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
+use crate::types::T::TensorElement;
 use crate::utils::array_utils::broadcast_shapes_matmul;
 use crate::utils::node_uid::make_node_uid;
-use std::ops::{Add, Mul};
 
 
 #[cfg(feature = "cuda")]
@@ -22,7 +21,7 @@ pub struct MatMulOp;
 
 impl<T> Operation<T> for MatMulOp 
 where
-    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + Clone + NumCast + ndarray::ScalarOperand + ndarray::LinalgScalar //+ Not<Output = T>
+    T: TensorElement
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);

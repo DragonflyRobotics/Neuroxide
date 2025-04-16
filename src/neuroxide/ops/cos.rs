@@ -1,11 +1,8 @@
-use num::{Num, NumCast};
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
+use crate::types::T::TensorElement;
 use crate::utils::node_uid::make_node_uid;
-use std::ops::{Add, Mul};
-
-use super::f_to_i_ops::{CosOpTrait, SinOpTrait};
 
 
 #[cfg(feature = "cuda")]
@@ -20,7 +17,7 @@ pub struct CosOp;
 
 impl<T> Operation<T> for CosOp
 where
-    T: Add<Output = T> + Mul<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Num + SinOpTrait + CosOpTrait
+    T: TensorElement
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 1);

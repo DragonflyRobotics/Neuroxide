@@ -1,6 +1,6 @@
-use crate::types::tensor::Tensor;
+use crate::types::{tensor::Tensor, T::TensorElement};
 
-pub trait Operation<T: std::marker::Copy>: std::fmt::Debug {
+pub trait Operation<T: TensorElement>: std::fmt::Debug {
     fn forward(input: &Vec<&Tensor<T>>) -> Tensor<T>;
     fn backward(input: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T>;
 }

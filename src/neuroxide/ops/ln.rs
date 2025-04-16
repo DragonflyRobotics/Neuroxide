@@ -1,11 +1,8 @@
-use num::{Num, NumCast};
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
+use crate::types::T::TensorElement;
 use crate::utils::node_uid::make_node_uid;
-use std::ops::{Add, Div, Mul};
-
-use super::f_to_i_ops::LnOpTrait;
 
 
 #[cfg(feature = "cuda")]
@@ -20,7 +17,7 @@ pub struct LnOp;
 
 impl<T> Operation<T> for LnOp
 where
-    T: Add<Output = T> + Mul<Output = T> + Div<Output = T> + Copy + Default + std::fmt::Debug + NumCast + Num + LnOpTrait
+    T: TensorElement
 {
     fn forward(inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 1);

@@ -24,7 +24,7 @@ fn main() {
     let mut layer_1_weights = Tensor::<f32>::new_uniform(&db, vec![16, 32], Device::CPU, true);
     let mut layer_1_biases = Tensor::<f32>::new_zeros(&db, vec![32], Device::CPU, true);
     let mut layer_2_weights = Tensor::<f32>::new_uniform(&db, vec![32, 16], Device::CPU, true);
-    let mut layer_2_biases = Tensor::<f32>::new_zeros(&db, vec![16], Device::CPU, true);
+   let mut layer_2_biases = Tensor::<f32>::new_zeros(&db, vec![16], Device::CPU, true);
     let pow_const = Tensor::<f32>::new(&db, vec![2.0; 1], vec![1], Device::CPU, false);
     let lr = Tensor::<f32>::new(&db, vec![0.0000001], vec![1], Device::CPU, false);
     for iteration in 0..600 {
