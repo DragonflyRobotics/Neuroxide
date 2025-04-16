@@ -134,33 +134,37 @@ pub fn broadcast_shapes_linear(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
 //     return Ok(result_shape);
 // }
 //
-fn mat_broadcast(shape1: &[usize], shape2: &[usize]) -> Result<(Vec<usize>, i8), ()> {
+fn mat_broadcast(shape1: &[usize], shape2: &[usize]) -> Result<(Vec<usize>, i8, Vec<usize>, Vec<usize>), ()> {
     let rank1 = shape1.len();
     let rank2 = shape2.len();
+    let mut mod1 = shape1.clone().to_vec();
+    let mut mod2 = shape2.clone().to_vec();
     if rank1 == 1 {
-        if rank2 == 1 {
+        if rank2 == 1 { // [z] X [z] = [1] -> []
             if shape1[0] == shape2[0] {
-                return Ok((vec![1], 1));
+                return Ok((vec![1], 1, mod1, mod2));
             } else {
                 return Err(());
             }
-        } else if rank2 == 2 {
+        } else if rank2 == 2 { // [z] X [z, y] = [1, y] -> [y]
             if shape1[0] == shape2[0] {
-                return Ok((vec![1, shape2[1]], -1));
+                mod1.insert(0, 1);
+                return Ok((vec![1, shape2[1]], -1, mod1, mod2));
             } else {
                 return Err(());
             }
         }
     } else if rank1 == 2 {
-        if rank2 == 1 {
+        if rank2 == 1 { // [y, z] X [z] = [y, 1] -> [y]
             if shape1[1] == shape2[0] {
-                return Ok((vec![shape1[0], 1], 1));
+                mod2.push(1);
+                return Ok((vec![shape1[0], 1], 1, mod1, mod2));
             } else {
                 return Err(());
             }
-        } else if rank2 == 2 {
+        } else if rank2 == 2 { // [y, z] X [z, y] = [y, y] -> []
             if shape1[1] == shape2[0] {
-                return Ok((vec![shape1[0], shape2[1]], 0));
+                return Ok((vec![shape1[0], shape2[1]], 0, mod1, mod2));
             } else {
                 return Err(());
             }
@@ -170,15 +174,34 @@ fn mat_broadcast(shape1: &[usize], shape2: &[usize]) -> Result<(Vec<usize>, i8),
 }
 
 pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>) -> Result<(Vec<usize>, i8), ()> {
-    let matrix_result = mat_broadcast(&shape1[shape1.len()-2..], &shape2[shape2.len()-2..]);
+    println!("Got shapes: {:?} and {:?}", shape1, shape2);
+    if shape1.len() <=2 && shape2.len() <= 2 {
+        let res = mat_broadcast(shape1, shape2).unwrap();
+        return Ok((res.0, res.1));
+    }
+    let mut temp1 = shape1.clone();
+    let mut temp2 = shape2.clone();
+    for i in 0..(temp1.len() as i32 -2).max(0) {
+        temp1.remove(0);
+    }
+    for i in 0..(temp2.len() as i32 -2).max(0) {
+        temp2.remove(0);
+    }
+    println!("Temp shapes: {:?} and {:?}", temp1, temp2);
+    let matrix_result = mat_broadcast(&temp1, &temp2);
     let matrix_res = match matrix_result {
-        Ok((shape, reduce)) => {
-            (shape, reduce)
+        Ok((shape, reduce, t1, t2)) => {
+            (shape, reduce, t1, t2)
         }
         Err(_) => {
             return Err(());
         }
     };
+    temp1 = matrix_res.clone().2;
+    temp2 = matrix_res.clone().3;
+    println!("Matrix Result: {:?}", matrix_res);
+    println!("Temp shapes: {:?} and {:?}", temp1, temp2);
+
 
     if shape1.len() > shape2.len() {
         let diff = shape1.len() - shape2.len();
@@ -203,6 +226,9 @@ pub fn broadcast_shapes_matmul(shape1: &mut Vec<usize>, shape2: &mut Vec<usize>)
             }
         }
     }
+    shape1.splice(shape1.len()-2.., temp1);
+    shape2.splice(shape2.len()-2.., temp2);
+
     let mut final_shape = shape1.clone();
     final_shape.splice(final_shape.len()-2.., matrix_res.0);
     println!("Got shapes: {:?} and {:?}", shape1, shape2);
