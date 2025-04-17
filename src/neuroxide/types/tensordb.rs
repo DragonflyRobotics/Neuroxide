@@ -43,6 +43,10 @@ impl <T> TensorDB<T> {
         self.tensors.get(&id)
     }
 
+    pub fn get_mut(&mut self, id: i32) -> Option<&mut Tensor<T>> {
+        self.tensors.get_mut(&id)
+    }
+
     pub fn get_dtype(&self) -> DTypes {
         self.dtype.clone()
     }

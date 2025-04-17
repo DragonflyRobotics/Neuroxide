@@ -24,8 +24,8 @@ fn main() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let pow_const = Tensor::<f32>::new(&db, vec![2.0; 1], vec![1], Device::CPU, false);
     let lr = Tensor::<f32>::new(&db, vec![0.0000001], vec![1], Device::CPU, false);
-    let linear1 = Linear::new(&db, 16, 16, true);
-    let mut optim = SimpleDescent::new(lr.clone());
+    let mut linear1 = Linear::new(&db, 16, 16, true);
+    let mut optim = SimpleDescent::new(&db, lr.clone());
     optim.add_parameters(&linear1.parameters());
     for iteration in 0..2000 {
         let num: f32 = rand::thread_rng().gen_range(0..100) as f32; 
@@ -33,13 +33,13 @@ fn main() {
         let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![1, 16], Device::CPU, false);
 
 
-        let mut c = linear1.forward(&input);
+        let c = linear1.forward(&input);
 
         let loss = pow!(c - output, pow_const);
         // println!("loss: {:?}", loss.shape);
 
         let grad = loss.backward(None);
-        println!("{:?}", &linear1.parameters().values().nth(0).unwrap().data);
+        // println!("{}", db.read().unwrap().get(*linear1.parameters().values().nth(0).unwrap()).unwrap()); 
 
         optim.step(&grad);
 

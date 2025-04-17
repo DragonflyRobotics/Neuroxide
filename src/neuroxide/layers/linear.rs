@@ -11,6 +11,7 @@ use crate::utils::node_uid::make_node_uid;
 
 pub struct Linear<T> {
     id: i32,
+    db: Arc<RwLock<TensorDB<T>>>,
     input_features: usize,
     output_features: usize,
     useBias: bool,
@@ -31,6 +32,7 @@ where
         };
         Linear {
             id: make_node_uid(),
+            db: db.clone(),
             input_features,
             output_features,
             useBias: use_bias,
@@ -39,7 +41,12 @@ where
         }
     }
 
-    pub fn forward(&self, input: &Tensor<T>) -> Tensor<T> {
+    pub fn forward(&mut self, input: &Tensor<T>) -> Tensor<T> {
+        println!("{:?}", self.weights.data);
+        self.weights = self.db.read().unwrap().get(self.weights.id).unwrap().clone();
+        if let Some(ref b) = self.bias {
+            self.bias = Some(self.db.read().unwrap().get(b.id).unwrap().clone());
+        }
         match self.bias {
             Some(ref b) => {
                 AddOp::forward(&vec![&MatMulOp::forward(&vec![input, &self.weights]), b])
@@ -50,11 +57,11 @@ where
         }
     }
 
-    pub fn parameters(&self) -> HashMap<String, Tensor<T>> {
+    pub fn parameters(&self) -> HashMap<String, i32> {
         let mut params = HashMap::new();
-        params.insert(format!("linear_{}_weights", self.id), self.weights.clone());
+        params.insert(format!("linear_{}_weights", self.id), self.weights.id);
         if let Some(ref b) = self.bias {
-            params.insert(format!("linear_{}_bias", self.id), b.clone());
+            params.insert(format!("linear_{}_bias", self.id), b.id);
         }
         params
     }

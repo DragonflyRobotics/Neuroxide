@@ -1,0 +1,13 @@
+{
+  "check": {
+    "command": "clippy"
+  },
+  "cargo": {
+    "features": "cuda",
+    "noDefaultFeatures": false
+  },
+  "procMacro": {
+    "enable": true
+  }
+}
+
