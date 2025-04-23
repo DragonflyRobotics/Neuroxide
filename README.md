@@ -105,53 +105,52 @@ println!(grad.get(&x2.id).unwrap().data[0]);
 
 _Simple Neural Network_
 ```rust
-use std::sync::{Arc, RwLock};
+extern crate blas_src;
+use std::{sync::{Arc, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
-use neuroxide::types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}};
+use neuroxide::{layers::linear::Linear, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use neuroxide::ops::op_generic::Operation;
+use neuroxide::optimizers::simple_descent::SimpleDescent;
 use rand::Rng;
 
 #[macro_use]
 extern crate neuroxide;
 
 fn main() {
+    let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
-    let mut layer_1_weights = Tensor::<f32>::new(&db, vec![1.0; 16], vec![1, 16], Device::CUDA, true);
-    let mut layer_1_biases = Tensor::<f32>::new(&db, vec![1.0; 16*16], vec![16, 16], Device::CUDA, true);
-    let mut layer_2_weights = Tensor::<f32>::new(&db, vec![1.0; 16], vec![16, 1], Device::CUDA, true);
-    let mut layer_2_biases = Tensor::<f32>::new(&db, vec![1.0; 16], vec![16, 1], Device::CUDA, true);
-    let pow_const = Tensor::<f32>::new(&db, vec![2.0; 16], vec![16, 1], Device::CUDA, false);
-    let lr = Tensor::<f32>::new(&db, vec![0.0000001], vec![1], Device::CUDA, false);
-    for iteration in 0..600 {
+    let pow_const = Tensor::<f32>::new(&db, vec![2.0; 1], vec![1], Device::CPU, false);
+    let mut linear1 = Linear::new(&db, 16, 16, true);
+    let mut linear2 = Linear::new(&db, 16, 16, true);
+    let mut optim = SimpleDescent::new(&db, 0.0000001);
+    optim.add_parameters(&linear1.parameters());
+    optim.add_parameters(&linear2.parameters());
+    for iteration in 0..1500 {
         let num: f32 = rand::thread_rng().gen_range(0..100) as f32; 
-        let input = Tensor::<f32>::new(&db, vec![num; 16], vec![16, 1], Device::CUDA, false);
-        let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![16, 1], Device::CUDA, false);
-        
-        let c = add!(matmul!(input, layer_1_weights), layer_1_biases);
-        let c = add!(matmul!(c, layer_2_weights), layer_2_biases);
+        let input = Tensor::<f32>::new(&db, vec![num; 16], vec![1, 16], Device::CPU, false);
+        let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![1, 16], Device::CPU, false);
+
+
+        let mut c = linear1.forward(&input);
+        c = linear2.forward(&c);
+
         let loss = pow!(c - output, pow_const);
-        
         let grad = loss.backward(None);
-        
-        layer_1_weights = layer_1_weights.clone() - grad.get(&layer_1_weights.id).unwrap().clone() * lr.clone();
-        layer_1_weights.clear_graph();
-        
-        layer_1_biases = layer_1_biases.clone() - grad.get(&layer_1_biases.id).unwrap().clone() * lr.clone();
-        layer_1_biases.clear_graph();
-        
-        layer_2_weights = layer_2_weights.clone() - grad.get(&layer_2_weights.id).unwrap().clone() * lr.clone();
-        layer_2_weights.clear_graph();
-        
-        layer_2_biases = layer_2_biases.clone() - grad.get(&layer_2_biases.id).unwrap().clone() * lr.clone();
-        layer_2_biases.clear_graph();
+
+        optim.step(&grad);
+
         println!("Epoch: {} Loss: {}", iteration, loss);
-   } 
-   
-   let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16, 1], Device::CUDA, false);
-   
-   let c = add!(matmul!(input, layer_1_weights), layer_1_biases);
-   let c = add!(matmul!(c, layer_2_weights), layer_2_biases);
-   println!("{}", c);
+    } 
+
+    let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16], Device::CPU, false);
+
+    let c = linear1.forward(&input);
+    let c = linear2.forward(&c);
+    println!("{}", c);
+
+
+    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    println!("Time taken: {:?} seconds", end-start);
 }
 ```
 **Note:** The layers are manually implemented here but built-in `neuroxide.nn.Linear` functionality is coming soon!
