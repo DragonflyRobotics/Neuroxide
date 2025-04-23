@@ -15,8 +15,8 @@ pub struct Linear<T> {
     input_features: usize,
     output_features: usize,
     useBias: bool,
-    pub weights: Tensor<T>,
-    pub bias: Option<Tensor<T>>,
+    pub weights: Arc<RwLock<Tensor<T>>>,
+    pub bias: Option<Arc<RwLock<Tensor<T>>>>,
 }
 
 impl<T> Linear<T> 
@@ -36,32 +36,28 @@ where
             input_features,
             output_features,
             useBias: use_bias,
-            weights,
-            bias,
+            weights: Arc::new(RwLock::new(weights)),
+            bias: bias.map(|b| Arc::new(RwLock::new(b))),
         }
     }
 
     pub fn forward(&mut self, input: &Tensor<T>) -> Tensor<T> {
-        println!("{:?}", self.weights.data);
-        self.weights = self.db.read().unwrap().get(self.weights.id).unwrap().clone();
-        if let Some(ref b) = self.bias {
-            self.bias = Some(self.db.read().unwrap().get(b.id).unwrap().clone());
-        }
-        match self.bias {
-            Some(ref b) => {
-                AddOp::forward(&vec![&MatMulOp::forward(&vec![input, &self.weights]), b])
+        let weights = self.weights.read().unwrap();
+        match self.bias.clone() {
+            Some(b) => {
+                AddOp::forward(&vec![&MatMulOp::forward(&vec![input, &weights]), &b.read().unwrap()])
             }
             None => {
-                MatMulOp::forward(&vec![input, &self.weights])
+                MatMulOp::forward(&vec![input, &weights])
             }
         }
     }
-
-    pub fn parameters(&self) -> HashMap<String, i32> {
+    
+    pub fn parameters(&self) -> HashMap<String, Arc<RwLock<Tensor<T>>>> {
         let mut params = HashMap::new();
-        params.insert(format!("linear_{}_weights", self.id), self.weights.id);
-        if let Some(ref b) = self.bias {
-            params.insert(format!("linear_{}_bias", self.id), b.id);
+        params.insert(format!("linear_{}_weights", self.id), self.weights.clone());
+        if let Some(b) = self.bias.clone() {
+            params.insert(format!("linear_{}_bias", self.id), b);
         }
         params
     }

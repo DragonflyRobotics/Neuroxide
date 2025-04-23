@@ -5,38 +5,37 @@ use crate::types::{tensor::Tensor, tensordb::TensorDB, T::TensorElement};
 pub struct SimpleDescent<T> {
     db: Arc<RwLock<TensorDB<T>>>,
     lr: Tensor<T>,
-    parameters: Vec<i32>,
+    parameters: Vec<Arc<RwLock<Tensor<T>>>>,
 }
 
 impl <T> SimpleDescent<T> 
 where
     T: TensorElement
 {
-    pub fn new(db: &Arc<RwLock<TensorDB<T>>>, lr: Tensor<T>) -> Self {
-        assert!(lr.shape == vec![1], "Learning rate must be a scalar");
+    pub fn new(db: &Arc<RwLock<TensorDB<T>>>, lr: f32) -> Self {
         SimpleDescent {
             db: db.clone(),
-            lr,
+            lr: Tensor::<T>::new(db, vec![T::from(lr).unwrap()], vec![1], crate::types::device::Device::CPU, false),
             parameters: Vec::new(),
         }
     }
 
-    pub fn add_parameters(&mut self, params: &HashMap<String, i32>) {
+    pub fn add_parameters(&mut self, params: &HashMap<String, Arc<RwLock<Tensor<T>>>>) {
         for param in params.values() {
-            self.parameters.push(*param);
+            self.parameters.push(param.clone());
         }
     }
 
     pub fn step(&mut self, grad: &HashMap<i32, Tensor<T>>) {
-        for param_id in &mut self.parameters {
-            let p = self.db.read().unwrap().get(*param_id).unwrap().clone();
-            let grad_param = grad.get(&p.id).unwrap().clone();
+        for param in &mut self.parameters {
+            let param_id = param.read().unwrap().id;
+            let mut p = param.write().unwrap();
+
+            let grad_param = grad.get(&param_id).unwrap().clone();
             let new_param = p.clone() - (grad_param * self.lr.clone());
-            let mut db = self.db.try_write().unwrap();
-            let param: &mut Tensor<T> = db.get_mut(*param_id).unwrap();
-            param.data = new_param.data;
-            param.shape = new_param.shape;
-            param.clear_graph();
+            p.data = new_param.data;
+            p.shape = new_param.shape;
+            p.clear_graph();
         }
     }
 }
