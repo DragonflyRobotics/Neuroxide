@@ -21,17 +21,17 @@ fn main() {
     // cuda_main();
     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     let db = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
-    let a = Tensor::new(&db, vec![3.0], vec![1], Device::CPU, true);
-    let b = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
+    let a = Tensor::new(&db, vec![3.0], vec![1], Device::CUDA, true);
+    let b = Tensor::new(&db, vec![6.0], vec![1], Device::CUDA, false);
     let mut c = AddOp::forward(&vec![&a, &b]);
     let mut d = SubOp::forward(&vec![&a, &c]);
     let e = MulOp::forward(&vec![&a, &d]);
     let f = DivOp::forward(&vec![&a, &e]);
-    // let g = PowOp::forward(&vec![&a, &f]);
+    let g = PowOp::forward(&vec![&a, &f]);
 
-    // let mut h = SinOp::forward(&vec![&g]);
+    let mut h = SinOp::forward(&vec![&g]);
 
-    let mut grad = f.backward(None);
+    let mut grad = h.backward(None);
     for g in grad.values_mut() {
         println!("grad fin: {}", g);
     }
