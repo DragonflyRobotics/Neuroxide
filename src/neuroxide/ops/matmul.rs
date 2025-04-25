@@ -203,7 +203,9 @@ where
             requires_grad: inputs[0].requires_grad || inputs[1].requires_grad,
             op_chain: result_graph,
             op_head: result_id,
-            dtype: inputs[0].dtype.clone()
+            dtype: inputs[0].dtype.clone(),
+            cuda_ptr: None // TODO: Fix this
+
         };
 
         let db = inputs[0].dtype.clone();
@@ -268,7 +270,8 @@ where
             requires_grad: inputs[1 - grad_index].requires_grad,
             op_chain: inputs[1 - grad_index].op_chain.clone(),
             op_head: inputs[1 - grad_index].op_head,
-            dtype: inputs[1 - grad_index].dtype.clone()
+            dtype: inputs[1 - grad_index].dtype.clone(),
+            cuda_ptr: None // TODO: Fix this
         }
     }
 }

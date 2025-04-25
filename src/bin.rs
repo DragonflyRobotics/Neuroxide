@@ -1,56 +1,53 @@
-extern crate blas_src;
-use std::{sync::{Arc, RwLock}, time::{SystemTime, UNIX_EPOCH}};
+// use neuroxide::idk::cuda_main;
+// struct test {
+//     a: *mut f32
+// }
 
-use neuroxide::{layers::linear::Linear, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+use std::sync::{Arc, RwLock};
+use std::time::{SystemTime, UNIX_EPOCH};
+use neuroxide::ops::add::AddOp;
+use neuroxide::ops::cos::CosOp;
+use neuroxide::ops::div::DivOp;
+use neuroxide::ops::mul::MulOp;
 use neuroxide::ops::op_generic::Operation;
-use neuroxide::optimizers::simple_descent::SimpleDescent;
-use rand::Rng;
-
-#[macro_use]
-extern crate neuroxide;
-
-// TODO: Fix benchmarks
-// TODO: Replace NDArray (Maybe)
-// TODO: Create Union Graph for operations on CUDA
-// TODO: Enable caching/saving
-// TODO: Add more operations
-
+use neuroxide::ops::pow::PowOp;
+use neuroxide::ops::sin::SinOp;
+use neuroxide::ops::sub::SubOp;
+use neuroxide::{ops::ln::LnOp, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 
 
 
 fn main() {
+    // cuda_main();
     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
-    let pow_const = Tensor::<f32>::new(&db, vec![2.0; 1], vec![1], Device::CPU, false);
-    let mut linear1 = Linear::new(&db, 16, 16, true);
-    let mut linear2 = Linear::new(&db, 16, 16, true);
-    let mut optim = SimpleDescent::new(&db, 0.0000001);
-    optim.add_parameters(&linear1.parameters());
-    optim.add_parameters(&linear2.parameters());
-    for iteration in 0..1500 {
-        let num: f32 = rand::thread_rng().gen_range(0..100) as f32; 
-        let input = Tensor::<f32>::new(&db, vec![num; 16], vec![1, 16], Device::CPU, false);
-        let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![1, 16], Device::CPU, false);
+    let db = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
+    let a = Tensor::new(&db, vec![3.0], vec![1], Device::CUDA, true);
+    let b = Tensor::new(&db, vec![6.0], vec![1], Device::CUDA, false);
+    let mut c = AddOp::forward(&vec![&a, &b]);
+    let mut d = SubOp::forward(&vec![&a, &c]);
+    let e = MulOp::forward(&vec![&a, &d]);
+    let f = DivOp::forward(&vec![&a, &e]);
+    // let g = PowOp::forward(&vec![&a, &f]);
 
+    // let mut h = SinOp::forward(&vec![&g]);
 
-        let mut c = linear1.forward(&input);
-        c = linear2.forward(&c);
-
-        let loss = pow!(c - output, pow_const);
-        let grad = loss.backward(None);
-
-        optim.step(&grad);
-
-        println!("Epoch: {} Loss: {}", iteration, loss);
-    } 
-
-    let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16], Device::CPU, false);
-
-    let c = linear1.forward(&input);
-    let c = linear2.forward(&c);
-    println!("{}", c);
-
-
+    let mut grad = f.backward(None);
+    for g in grad.values_mut() {
+        println!("grad: {}", g);
+    }
+    
     let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-    println!("Time taken: {:?} seconds", end-start);
+    // tensor_cpu(&db);
+    // c.cpu();
+    // println!("a: {}", a);
+    // println!("b: {}", b);
+    // println!("c: {}", c);
+    // println!("d: {}", d);
+    // println!("e: {}", e);
+    // println!("f: {}", f);
+    // println!("g: {}", g);
+    //
+    //
+    // println!("h: {}", h);
+    println!("Time: {:?}", end - start);
 }

@@ -7,7 +7,7 @@ use crate::utils::node_uid::make_node_uid;
 
 #[cfg(feature = "cuda")]
 extern "C" {
-pub fn sin_kernel(len: i32, a: *mut f32, c: *mut f32) -> CudnnStatusT;
+pub fn sin_kernel(len: i32, a: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
@@ -23,6 +23,8 @@ where
         assert!(inputs.len() == 1);
         let result: Vec<T>; // = vec![T::default(); len as usize];
 
+        let mut cuda_ptr: Option<*mut f32> = None;
+
         match inputs[0].device {
             Device::CPU => {
                 result = inputs[0].data.iter().map(|x| x.sin()).collect();
@@ -31,11 +33,13 @@ where
 
                 #[cfg(feature = "cuda")]
                 unsafe {
-                    let a: Vec<f32> = inputs[0].data.iter().map(|&x| <f32 as NumCast>::from(x).unwrap()).collect();
-                    let len = a.len() as i32;
-                    let mut r = vec![0.0f32; len as usize];
-                    sin_kernel(len, a.as_ptr() as *mut f32, r.as_mut_ptr());
-                    result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
+                    let len = inputs[0].data.len() as i32;
+                    let mut data: f32 = 0.0;
+                    let mut ptr_to_data: *mut f32 = &mut data;
+                    sin_kernel(len, inputs[0].cuda_ptr.unwrap(), &mut ptr_to_data);
+                    cuda_ptr = Some(ptr_to_data);
+                    let r = vec![0.0f32; len as usize];
+                    result = r.iter().map(|&x| <T as num::NumCast>::from(x).unwrap()).collect();
                 }
                 #[cfg(not(feature = "cuda"))]
                 {
@@ -61,7 +65,8 @@ where
             requires_grad: inputs[0].requires_grad,
             op_chain: result_graph,
             op_head: result_id,
-            dtype: inputs[0].dtype.clone()
+            dtype: inputs[0].dtype.clone(),
+            cuda_ptr
         };
 
 
@@ -82,12 +87,13 @@ where
             id: inputs[0].id,
             data: grad_data,
             shape: inputs[0].shape.clone(),
-            device: inputs[0].device,
+            device: Device::CPU,
             op: Ops::SinEnum,
             requires_grad: inputs[0].requires_grad,
             op_chain: inputs[0].op_chain.clone(),
             op_head: inputs[0].op_head,
-            dtype: inputs[0].dtype.clone()
+            dtype: inputs[0].dtype.clone(),
+            cuda_ptr: None
         }
     }
 }

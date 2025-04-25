@@ -18,6 +18,7 @@
  */
 
 // For the CUDA runtime routines (prefixed with "cuda_")
+#include <cstdlib>
 #include <cuda_runtime.h>
 
 #include "utils.cuh"
@@ -67,17 +68,38 @@ vectorLn(const float *A, float *C, int numElements)
  * Host main routine
  */
 extern  "C" {
-    void sin_kernel(const int len, const float* A, float* C)
+    void sin_kernel(const int len, float* A, float** C)
     {
         unaryVectorOp(len, A, C, vectorSin);
     }
-    void cos_kernel(const int len, const float* A, float* C)
+    void cos_kernel(const int len, float* A, float** C)
     {
         unaryVectorOp(len, A, C, vectorCos);
     }
-    void ln_kernel(const int len, const float* A, float* C)
+    void ln_kernel(const int len, float* A, float** C)
     {
         unaryVectorOp(len, A, C, vectorLn);
+    }
+
+    float* toCuda(const int len, float* A)
+    {
+        size_t size = len * sizeof(float);
+        float* d_A = allocateCUDAMemory(size);
+        copyDataToCUDAMemory(d_A, A, size);
+        return d_A;
+    }
+    float* toCpu(const int len, float* A)
+    {
+        size_t size = len * sizeof(float);
+        float *h_A = (float *)malloc(size);
+        copyDataToHostMemory(h_A, A, size);
+        return h_A;
+    }
+    
+    void checkkData(const int len, float* ptr) {
+        printf("got len %d\n", len);
+        printf("ptr %p\n", ptr);
+        // checkData(len, ptr);
     }
 }
 

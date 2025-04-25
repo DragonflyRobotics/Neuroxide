@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, RwLock}};
 use crate::{types::tensor::Tensor, utils::types::print_type_of};
 
 #[derive(Clone, PartialEq)]
@@ -51,7 +51,6 @@ impl <T> TensorDB<T> {
         self.dtype.clone()
     }
 }
-
 
 pub fn assert_types<T>(dtype: DTypes, data_sample: T) {
     match dtype {

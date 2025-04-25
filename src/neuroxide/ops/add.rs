@@ -11,7 +11,7 @@ use crate::utils::node_uid::make_node_uid;
 
 #[cfg(feature = "cuda")]
 extern "C" {
-pub fn add_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut f32) -> CudnnStatusT;
+pub fn add_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
@@ -64,12 +64,13 @@ where
                 id: inputs[0].id,
                 data: grad_data,
                 shape: inputs[0].shape.clone(),
-                device: inputs[0].device,
+                device: Device::CPU,
                 op: Ops::AddEnum,
                 requires_grad: inputs[0].requires_grad,
                 op_chain: inputs[0].op_chain.clone(),
                 op_head: inputs[0].op_head,
-                dtype: inputs[0].dtype.clone()
+                dtype: inputs[0].dtype.clone(),
+                cuda_ptr: None // TODO: Fix this
             }
         }
     }
@@ -98,6 +99,7 @@ where
         let final_shape: Vec<usize> = a_arr.shape().iter().map(|x| *x as usize).collect();
         
         let result: Vec<T>; // = vec![T::default(); len as usize];
+        let mut cuda_ptr: Option<*mut f32> = None;
         match self.device {
             Device::CPU => {
                 let res = a_arr + b_arr;
@@ -106,12 +108,16 @@ where
             Device::CUDA => {
                 #[cfg(feature = "cuda")]
                 unsafe {
+                    assert!(self.shape == other.shape);
                     let a_flat = a_arr.as_slice().unwrap();
-                    let b_flat = b_arr.as_slice().unwrap();
+                    // let b_flat = b_arr.as_slice().unwrap();
                     
                     let len: i32 = a_flat.len() as i32;
+                    let mut data: f32 = 0.0;
+                    let mut ptr_to_data: *mut f32 = &mut data;
+                    add_kernel(len, a.cuda_ptr.unwrap(), b.cuda_ptr.unwrap(), &mut ptr_to_data);
+                    cuda_ptr = Some(ptr_to_data);
                     let mut r = vec![0.0; len as usize];
-                    add_kernel(len, a_flat.as_ptr() as *mut f32, b_flat.as_ptr() as *mut f32, r.as_mut_ptr());
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
                 }
                 #[cfg(not(feature = "cuda"))]
@@ -155,7 +161,8 @@ where
             requires_grad: self.requires_grad || other.requires_grad,
             op_chain: result_graph,
             op_head: result_id,
-            dtype: self.dtype.clone()
+            dtype: self.dtype.clone(),
+            cuda_ptr
         };
 
         let db = self.dtype.clone();

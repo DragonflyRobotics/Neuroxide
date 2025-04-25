@@ -2,10 +2,12 @@
 #define UTILS_CUH
 
 #include <stdio.h>
+#include <iostream>
 
 // For the CUDA runtime routines (prefixed with "cuda_")
 #include <cuda_runtime.h>
 
+// TODO: Free all tensors moved to cpu
 inline bool verifyAllocations(float* var)
 {
     if (var == NULL)
@@ -44,35 +46,51 @@ inline void copyDataToHostMemory(float* h_var, float* d_var, size_t size)
 }
 
 
-inline int binaryVectorOp(const int len, const float* A, const float* B, float* C, void (*kernel)(const float*, const float*, float*, int))
+inline void checkData(const int len, float* ptr) {
+    std::cout << "got len " << len << std::endl;
+    long size = len * sizeof(float);
+    std::cout << "size " << size << std::endl;
+    std::cout << "ptr " << ptr << std::endl;
+    // Allocate the host input vector A
+    float *h_A = (float *)malloc(size);
+    
+    copyDataToHostMemory(h_A, ptr, size);
+    for (int i = 0; i < len; ++i)
+    {
+        printf("C[%d] = %f\n", i, h_A[i]);
+    }
+}
+
+
+inline int binaryVectorOp(const int len, float* A, float* B, float** C, void (*kernel)(const float*, const float*, float*, int))
 {
     long size = len * sizeof(float);
     // Allocate the host input vector A
-    float *h_A = (float *)malloc(size);
+    // float *h_A = (float *)malloc(size);
 
     // Allocate the host input vector B
-    float *h_B = (float *)malloc(size);
+    // float *h_B = (float *)malloc(size);
 
     // Allocate the host output vector C
     // float *h_C = (float *)malloc(size);
 
     // Verify that allocations succeeded
-    if (h_A == NULL || h_B == NULL || C == NULL)
-    {
-        fprintf(stderr, "Failed to allocate host vectors!\n");
-        exit(EXIT_FAILURE);
-    }
+    // if (h_A == NULL || h_B == NULL || C == NULL)
+    // {
+    //     fprintf(stderr, "Failed to allocate host vectors!\n");
+    //     exit(EXIT_FAILURE);
+    // }
+    //
+    // memcpy(h_A, A, size);
+    // memcpy(h_B, B, size);
 
-    memcpy(h_A, A, size);
-    memcpy(h_B, B, size);
-
-    float *d_A = allocateCUDAMemory(size);
-    float *d_B = allocateCUDAMemory(size);
+    float *d_A = A; //allocateCUDAMemory(size);
+    float *d_B = B; //allocateCUDAMemory(size);
     float *d_C = allocateCUDAMemory(size);
 
 
-    copyDataToCUDAMemory(d_A, h_A, size);
-    copyDataToCUDAMemory(d_B, h_B, size);
+    // copyDataToCUDAMemory(d_A, h_A, size);
+    // copyDataToCUDAMemory(d_B, h_B, size);
 
     // Launch the Vector Add CUDA Kernel
     // int threadsPerBlock = 256;
@@ -96,47 +114,49 @@ inline int binaryVectorOp(const int len, const float* A, const float* B, float* 
     checkCUDASuccess(cudaGetLastError());
 
     // Copy the device result vector in device memory to the host result vector
-    copyDataToHostMemory(C, d_C, size);
+    // copyDataToHostMemory(C, d_C, size);
+    *C = d_C;
     // for (int i = 0; i < len; ++i)
     // {
     //     printf("C[%d] = %f\n", i, C[i]);
     // }
 
 
-    checkCUDASuccess(cudaFree(d_A));
-    checkCUDASuccess(cudaFree(d_B));
-    checkCUDASuccess(cudaFree(d_C));
-    free(h_A);
-    free(h_B);
+    // checkCUDASuccess(cudaFree(d_A));
+    // checkCUDASuccess(cudaFree(d_B));
+    // checkCUDASuccess(cudaFree(d_C));
+    // free(h_A);
+    // free(h_B);
 
     return 0;
 }
 
 
-inline int unaryVectorOp(const int len, const float* A, float* C, void (*kernel)(const float*, float*, int))
+inline int unaryVectorOp(const int len, float* A, float** C, void (*kernel)(const float*, float*, int))
 {
     long size = len * sizeof(float);
     // Allocate the host input vector A
-    float *h_A = (float *)malloc(size);
+    // float *h_A = (float *)malloc(size);
+    //
+    //
+    // // Allocate the host output vector C
+    // // float *h_C = (float *)malloc(size);
+    //
+    // // Verify that allocations succeeded
+    // if (h_A == NULL || C == NULL)
+    // {
+    //     fprintf(stderr, "Failed to allocate host vectors!\n");
+    //     exit(EXIT_FAILURE);
+    // }
+    //
+    // memcpy(h_A, A, size);
 
-
-    // Allocate the host output vector C
-    // float *h_C = (float *)malloc(size);
-
-    // Verify that allocations succeeded
-    if (h_A == NULL || C == NULL)
-    {
-        fprintf(stderr, "Failed to allocate host vectors!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    memcpy(h_A, A, size);
-
-    float *d_A = allocateCUDAMemory(size);
+    float *d_A = A; //allocateCUDAMemory(size);
+    std::cout << "d_A Before " << d_A << std::endl;
     float *d_C = allocateCUDAMemory(size);
 
 
-    copyDataToCUDAMemory(d_A, h_A, size);
+    // copyDataToCUDAMemory(d_A, h_A, size);
 
     // Launch the Vector Add CUDA Kernel
     // int threadsPerBlock = 256;
@@ -160,16 +180,17 @@ inline int unaryVectorOp(const int len, const float* A, float* C, void (*kernel)
     checkCUDASuccess(cudaGetLastError());
 
     // Copy the device result vector in device memory to the host result vector
-    copyDataToHostMemory(C, d_C, size);
+    // copyDataToHostMemory(C, d_C, size);
+    *C = d_C;
     // for (int i = 0; i < len; ++i)
     // {
     //     printf("C[%d] = %f\n", i, C[i]);
     // }
 
 
-    checkCUDASuccess(cudaFree(d_A));
-    checkCUDASuccess(cudaFree(d_C));
-    free(h_A);
+    // checkCUDASuccess(cudaFree(d_A));
+    // checkCUDASuccess(cudaFree(d_C));
+    // free(h_A);
 
     return 0;
 }

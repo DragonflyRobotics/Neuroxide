@@ -88,23 +88,23 @@ vectorPow(const float *A, const float *B, float *C, int numElements)
  * Host main routine
  */
 extern  "C" {
-    void add_kernel(const int len, const float* A, const float* B, float* C)
+    void add_kernel(const int len, float* A, float* B, float** C)
     {
         binaryVectorOp(len, A, B, C, vectorAdd);
     }
-    void sub_kernel(const int len, const float* A, const float* B, float* C)
+    void sub_kernel(const int len, float* A, float* B, float** C)
     {
         binaryVectorOp(len, A, B, C, vectorSub);
     }
-    void mul_kernel(const int len, const float* A, const float* B, float* C)
+    void mul_kernel(const int len, float* A, float* B, float** C)
     {
         binaryVectorOp(len, A, B, C, vectorMul);
     }
-    void div_kernel(const int len, const float* A, const float* B, float* C)
+    void div_kernel(const int len, float* A, float* B, float** C)
     {
         binaryVectorOp(len, A, B, C, vectorDiv);
     }
-    void pow_kernel(const int len, const float* A, const float* B, float* C)
+    void pow_kernel(const int len, float* A, float* B, float** C)
     {
         binaryVectorOp(len, A, B, C, vectorPow);
     }

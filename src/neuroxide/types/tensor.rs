@@ -8,6 +8,14 @@ use rand::Rng;
 
 use super::{tensordb::{assert_types, TensorDB}, T::TensorElement};
 
+
+#[cfg(feature = "cuda")]
+extern "C" {
+    fn toCuda(size: i32, data: *mut f32) -> *mut f32;
+    fn checkkData(len: i32, ptr: *mut f32) -> i32;
+    fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
+}
+
 #[derive(Clone)]
 pub struct Tensor<T> {
     pub id: i32,
@@ -18,7 +26,8 @@ pub struct Tensor<T> {
     pub requires_grad: bool,
     pub op_chain: GraphMap<i32, i32, Directed>,
     pub op_head: i32,
-    pub dtype: Arc<RwLock<TensorDB<T>>>
+    pub dtype: Arc<RwLock<TensorDB<T>>>,
+    pub cuda_ptr: Option<*mut f32>
 }
 
 impl<T> Tensor<T> 
@@ -27,8 +36,15 @@ where
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
+        let mut cuda_ptr: Option<*mut f32> = None;
         if device == Device::CUDA {
             assert!(db.read().unwrap().get_dtype() == DTypes::F32, "CUDA only supports f32");
+            #[cfg(feature = "cuda")]
+            {
+                let mut a: Vec<f32> = data.iter().map(|&x| <f32 as num::NumCast>::from(x).unwrap()).collect();
+                cuda_ptr = Some(unsafe { toCuda(a.len() as i32, a.as_mut_ptr() as *mut f32) });
+                println!("CUDA ptr: {:?}", cuda_ptr);
+            }
         }
         let mut graph = GraphMap::new();
         let id = make_node_uid();
@@ -42,10 +58,38 @@ where
             requires_grad,
             op_chain: graph,
             op_head: id,
-            dtype: db.clone()
+            dtype: db.clone(),
+            cuda_ptr: cuda_ptr
         };
         db.write().unwrap().insert(t.clone());
         t
+    }
+
+    pub fn cpu(&mut self) {
+        if self.device == Device::CPU {
+            return;
+        }
+        #[cfg(feature = "cuda")]
+        unsafe {
+            let len = self.shape.iter().product::<usize>() as i32;
+            let h_A = toCpu(len, self.cuda_ptr.unwrap());
+            let mut a = vec![0.0; len as usize];
+            std::ptr::copy_nonoverlapping(h_A, a.as_mut_ptr(), len as usize);
+            let a: Vec<T> = a.iter().map(|&x| <T as num::NumCast>::from(x).unwrap()).collect();
+            println!("Data: {:?}", a);
+            self.data = a;
+            self.cuda_ptr = None;
+            self.device = Device::CPU;
+        }
+    }
+    
+    pub fn cuda(&mut self) {
+        #[cfg(feature = "cuda")]
+        unsafe {
+            let mut a: Vec<f32> = self.data.iter().map(|&x| <f32 as num::NumCast>::from(x).unwrap()).collect();
+            self.cuda_ptr = Some(toCuda(a.len() as i32, a.as_mut_ptr() as *mut f32));
+            self.device = Device::CUDA;
+        }
     }
 
     pub fn new_ones(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
@@ -124,7 +168,7 @@ where
             let path = algo::all_simple_paths::<Vec<_>, _>(&self.op_chain, self.id, leaf, 0, None).collect::<Vec<_>>();
             paths.insert(leaf, path);
         }
-        // println!("All paths: {:?}", paths);
+        println!("All paths: {:?}", paths);
 
         let mut grad = HashMap::new();
 
@@ -136,12 +180,13 @@ where
                 id: self.id,
                 data,
                 shape: self.shape.clone(),
-                device: self.device.clone(),
+                device: Device::CPU,
                 op: self.op.clone(),
                 requires_grad: self.requires_grad,
                 op_chain: new_graph,
                 op_head: self.id,
-                dtype: self.dtype.clone()
+                dtype: self.dtype.clone(),
+                cuda_ptr: None
             };
             grad.insert(leaf, new_tensor);
         }
@@ -150,7 +195,6 @@ where
             let path = &paths[&leaf];
             let mut arr: Vec<Tensor<T>> = Vec::new();
             for p in path {
-                // println!("Path: {:?}", p);
                 let mut temp = grad[&leaf].clone();
                 grad.get_mut(&leaf).unwrap().op_head = grad.get(&leaf).unwrap().id;
                 for i in 0..p.len() - 1 {
@@ -168,8 +212,9 @@ where
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                         let op_type = db.get(p[i]).unwrap().op.clone();
                         let input_shapes = inputs.iter().map(|x| x.shape.len()).collect::<Vec<_>>();
-                        let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
-                        // println!("output: {}", output);
+                        let mut output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                        output.cpu();
+                        println!("output: {}", output);
                         let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();
                         drop(db);
                         if let Ops::MatMulEnum = op_type {
@@ -186,7 +231,10 @@ where
                                temp = MulOp::forward(&vec![&output, &temp]);
                            }
                         } else {
+                            // println!("temp: {}", temp);
+                            // println!("output: {}", output);
                             temp = MulOp::forward(&vec![&output, &temp]);
+                            println!("temp: {}", temp);
                         }
                     }
                     // println!("output: ");
