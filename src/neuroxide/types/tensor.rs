@@ -43,7 +43,6 @@ where
             {
                 let mut a: Vec<f32> = data.iter().map(|&x| <f32 as num::NumCast>::from(x).unwrap()).collect();
                 cuda_ptr = Some(unsafe { toCuda(a.len() as i32, a.as_mut_ptr() as *mut f32) });
-                println!("CUDA ptr: {:?}", cuda_ptr);
             }
         }
         let mut graph = GraphMap::new();
@@ -76,7 +75,6 @@ where
             let mut a = vec![0.0; len as usize];
             std::ptr::copy_nonoverlapping(h_A, a.as_mut_ptr(), len as usize);
             let a: Vec<T> = a.iter().map(|&x| <T as num::NumCast>::from(x).unwrap()).collect();
-            println!("Data: {:?}", a);
             self.data = a;
             self.cuda_ptr = None;
             self.device = Device::CPU;

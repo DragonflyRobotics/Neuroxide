@@ -5,7 +5,7 @@ import time
 import random
 
 # Set device (CPU to match the Rust code)
-device = torch.device("cpu")
+device = torch.device("cuda")
 
 # Define the model
 class SimpleNet(nn.Module):

@@ -1,3 +1,4 @@
+use libc::time;
 use ndarray::{Array1, Array2, Array3, ArrayD, Axis, Ix1, Ix2, Ix3, IxDyn};
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
@@ -10,7 +11,7 @@ use crate::utils::node_uid::make_node_uid;
 
 #[cfg(feature = "cuda")]
 extern "C" {
-pub fn matmul(m: i32, n: i32, k: i32, h_A: *mut f32, h_B: *mut f32, h_C: *mut f32) -> CudnnStatusT;
+pub fn matmul(m: i32, n: i32, k: i32, h_A: *mut f32, h_B: *mut f32, h_C: *mut*mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
@@ -30,29 +31,34 @@ where
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
 
-        let mut a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
-        let mut b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
-        
         let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
-        // println!("{:?} X {:?} --> {:?}", shape1, shape2, shape);
-        let a_option = a.broadcast(shape1.clone());
-        if a_option.is_none() {
-            a = a.to_shape(IxDyn(&shape1)).unwrap().to_owned();
-        } else {
-            a = a_option.unwrap().to_owned();
-        }
-        let b_option = b.broadcast(shape2.clone());
-        if b_option.is_none() {
-            b = b.to_shape(IxDyn(&shape2)).unwrap().to_owned();
-        } else {
-            b = b_option.unwrap().to_owned();
-        }
 
         // println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
+        let mut cuda_ptr: Option<*mut f32> = None;
         match inputs[0].device {
             Device::CPU => {
+
+                let mut a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                let mut b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
+
+                // println!("{:?} X {:?} --> {:?}", shape1, shape2, shape);
+                let a_option = a.broadcast(shape1.clone());
+                if a_option.is_none() {
+                    a = a.to_shape(IxDyn(&shape1)).unwrap().to_owned();
+                } else {
+                    a = a_option.unwrap().to_owned();
+                }
+                let b_option = b.broadcast(shape2.clone());
+                if b_option.is_none() {
+                    b = b.to_shape(IxDyn(&shape2)).unwrap().to_owned();
+                } else {
+                    b = b_option.unwrap().to_owned();
+                }
+
+
+
                 if shape1.len() == 1 && shape2.len() == 1 {
                     let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
                     let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
@@ -103,31 +109,38 @@ where
             }
             Device::CUDA => {
                 if shape1.len() == 1 && shape2.len() == 1 {
-                    result = vec![T::default(); shape.iter().product()];
+                    result = vec![T::default(); 1];
                     #[cfg(feature = "cuda")]
                     unsafe {
-                        let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
-                        let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
-                        let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
-                        let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
-                        let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
-                        let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
-                        let a_shape = a.shape().to_vec();
-                        matmul(1 as i32, 1 as i32, a_shape[0] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
+                        // let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
+                        // let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
+                        // let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
+                        // let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
+                        // let a_vec: Vec<T> = a.iter().map(|&x| x).collect();
+                        // let b_vec: Vec<T> = b.iter().map(|&x| x).collect();
+                        // let a_shape = a.shape().to_vec();
+                        let mut data: f32 = 0.0;
+                        let mut ptr_to_data: *mut f32 = &mut data;
+                        matmul(1 as i32, 1 as i32, shape1[0] as i32, inputs[0].cuda_ptr.unwrap(), inputs[1].cuda_ptr.unwrap(), &mut ptr_to_data);
+                        cuda_ptr = Some(ptr_to_data);
                     }
                 }
                 else if shape1.len() == 2 && shape2.len() == 2 {
-                    result = vec![T::default(); shape.iter().product()];
+                    result = vec![T::default(); shape1[0] * shape2[1]];
                     #[cfg(feature = "cuda")]
                     unsafe {
-                        let a_shape = shape1.clone();
-                        let b_shape = shape2.clone();
-                        let a = inputs[0].data.clone();
-                        let b = inputs[1].data.clone();
-                        matmul(a_shape[0] as i32, b_shape[1] as i32, a_shape[1] as i32, a.as_ptr() as *mut f32, b.as_ptr() as *mut f32, result.as_ptr() as *mut f32); 
+                        // let a_shape = shape1.clone();
+                        // let b_shape = shape2.clone();
+                        // let a = inputs[0].data.clone();
+                        // let b = inputs[1].data.clone();
+                        let mut data: f32 = 0.0;
+                        let mut ptr_to_data: *mut f32 = &mut data;
+                        matmul(shape1[0] as i32, shape2[1] as i32, shape1[1] as i32, inputs[0].cuda_ptr.unwrap(), inputs[1].cuda_ptr.unwrap(), &mut ptr_to_data);
+                        cuda_ptr = Some(ptr_to_data);
                     }
                 } 
                 else if shape1.len() == 3 && shape2.len() == 3 {
+                    todo!();
                     let a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
                     let b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
                     let a: Array3<T> = a.into_dimensionality::<Ix3>().unwrap();
@@ -151,7 +164,7 @@ where
                             let b_slice: Array2<T> = b.index_axis(Axis(0), i).to_owned(); // (k, n)
                             let a_vec: Vec<T> = a_slice.iter().map(|&x| x).collect();
                             let b_vec: Vec<T> = b_slice.iter().map(|&x| x).collect();
-                            matmul(m as i32, n as i32, a_slice.shape()[1] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, c_vec.as_ptr() as *mut f32); 
+                            // matmul(m as i32, n as i32, a_slice.shape()[1] as i32, a_vec.as_ptr() as *mut f32, b_vec.as_ptr() as *mut f32, c_vec.as_ptr() as *mut f32); 
                         }
                         let c_slice = Array2::<T>::from_shape_vec(Ix2(m, n), c_vec).unwrap();
                         c.index_axis_mut(Axis(0), i).assign(&c_slice);
@@ -204,7 +217,7 @@ where
             op_chain: result_graph,
             op_head: result_id,
             dtype: inputs[0].dtype.clone(),
-            cuda_ptr: None // TODO: Fix this
+            cuda_ptr
 
         };
 

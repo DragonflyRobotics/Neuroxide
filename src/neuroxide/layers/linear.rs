@@ -24,9 +24,9 @@ where
     T: TensorElement
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, input_features: usize, output_features: usize, use_bias: bool) -> Self {
-        let weights = Tensor::<T>::new_uniform(db, vec![input_features, output_features], Device::CPU, true);
+        let weights = Tensor::<T>::new_uniform(db, vec![input_features, output_features], Device::CUDA, true);
         let bias = if use_bias {
-            Some(Tensor::<T>::new_uniform(db, vec![output_features], Device::CPU, true))
+            Some(Tensor::<T>::new_uniform(db, vec![1, output_features], Device::CUDA, true))
         } else {
             None
         };

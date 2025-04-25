@@ -1,66 +1,57 @@
-// use neuroxide::idk::cuda_main;
-// struct test {
-//     a: *mut f32
-// }
+extern crate blas_src;
+use std::{sync::{Arc, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
-use std::sync::{Arc, RwLock};
-use std::time::{SystemTime, UNIX_EPOCH};
-use neuroxide::ops::add::AddOp;
-use neuroxide::ops::cos::CosOp;
-use neuroxide::ops::div::DivOp;
-use neuroxide::ops::mul::MulOp;
+use neuroxide::{layers::linear::Linear, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use neuroxide::ops::op_generic::Operation;
-use neuroxide::ops::pow::PowOp;
-use neuroxide::ops::sin::SinOp;
-use neuroxide::ops::sub::SubOp;
-use neuroxide::{ops::ln::LnOp, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+use neuroxide::optimizers::simple_descent::SimpleDescent;
+use rand::Rng;
+
+#[macro_use]
+extern crate neuroxide;
+
+// TODO: Fix benchmarks
+// TODO: Replace NDArray (Maybe)
+// TODO: Create Union Graph for operations on CUDA
+// TODO: Enable caching/saving
+// TODO: Add more operations
+
+
 
 
 fn main() {
-    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
-    let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, false);
-    let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CPU, false);
-    let mut result = DivOp::forward(&vec![&c1c, &c2c]);
-    println!("result: {}", result);
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let pow_const = Tensor::<f32>::new(&db, vec![2.0; 16], vec![1,16], Device::CUDA, false);
+    let mut linear1 = Linear::new(&db, 16, 16, true);
+    let mut linear2 = Linear::new(&db, 16, 16, true);
+    let mut optim = SimpleDescent::new(&db, 0.0000001);
+    optim.add_parameters(&linear1.parameters());
+    optim.add_parameters(&linear2.parameters());
+    let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    for iteration in 0..1500 {
+        let num: f32 = rand::thread_rng().gen_range(0..100) as f32; 
+        let input = Tensor::<f32>::new(&db, vec![num; 16], vec![1, 16], Device::CUDA, false);
+        let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![1, 16], Device::CUDA, false);
 
-    c1c = Tensor::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CPU, false); 
-    c2c = Tensor::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CPU, false);
-    result = DivOp::forward(&vec![&c1c, &c2c]);
-    println!("result: {}", result);
+
+        let mut c = linear1.forward(&input);
+        c = linear2.forward(&c);
+
+        let loss = pow!(c - output, pow_const);
+        let grad = loss.backward(None);
+
+        optim.step(&grad);
+
+        // println!("Epoch: {} Loss: {}", iteration, loss);
+    } 
+
+    let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16], Device::CUDA, false);
+
+    let c = linear1.forward(&input);
+    let mut c = linear2.forward(&c);
+    c.cpu();
+    println!("{}", c);
+
+
+    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    println!("Time taken: {:?} seconds", end-start);
 }
-
-
-// fn main() {
-//     // cuda_main();
-//     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-//     let db = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
-//     let a = Tensor::new(&db, vec![3.0], vec![1], Device::CUDA, true);
-//     let b = Tensor::new(&db, vec![6.0], vec![1], Device::CUDA, false);
-//     let mut c = AddOp::forward(&vec![&a, &b]);
-//     let mut d = SubOp::forward(&vec![&a, &c]);
-//     let e = MulOp::forward(&vec![&a, &d]);
-//     let f = DivOp::forward(&vec![&a, &e]);
-//     let g = PowOp::forward(&vec![&a, &f]);
-//
-//     let mut h = SinOp::forward(&vec![&g]);
-//
-//     let mut grad = h.backward(None);
-//     for g in grad.values_mut() {
-//         println!("grad fin: {}", g);
-//     }
-//     
-//     let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-//     // tensor_cpu(&db);
-//     // c.cpu();
-//     // println!("a: {}", a);
-//     // println!("b: {}", b);
-//     // println!("c: {}", c);
-//     // println!("d: {}", d);
-//     // println!("e: {}", e);
-//     // println!("f: {}", f);
-//     // println!("g: {}", g);
-//     //
-//     //
-//     // println!("h: {}", h);
-//     println!("Time: {:?}", end - start);
-// }

@@ -20,37 +20,39 @@ __global__ void transpose(float *input, float *output, int rows, int cols) {
 }
 
 extern "C" {
-void matmul(const int M, const int N, const int K, float *A, float *B, float *C) {
+void matmul(const int M, const int N, const int K, float *A, float *B, float **C) {
     cublasHandle_t handle;
     cudaError_t cudaStat;
     cublasStatus_t stat;
 
     // Host matrices
-    float *h_A = (float *)malloc(M * K * sizeof(float)); // Matrix A
-    float *h_B = (float *)malloc(K * N * sizeof(float)); // Matrix B
-    float *h_C = (float *)malloc(M * N * sizeof(float)); // Matrix C
+    // float *h_A = (float *)malloc(M * K * sizeof(float)); // Matrix A
+    // float *h_B = (float *)malloc(K * N * sizeof(float)); // Matrix B
+    // float *h_C = (float *)malloc(M * N * sizeof(float)); // Matrix C
 
     // Verify that allocations succeeded
-    if (h_A == NULL || h_B == NULL || h_C == NULL)
-    {
-        fprintf(stderr, "Failed to allocate host vectors!\n");
-        exit(EXIT_FAILURE);
-    }
+    // if (h_A == NULL || h_B == NULL || h_C == NULL)
+    // {
+    //     fprintf(stderr, "Failed to allocate host vectors!\n");
+    //     exit(EXIT_FAILURE);
+    // }
 
     // Initialize matrices A and B
-    memcpy(h_A, A, M * K * sizeof(float));
-    memcpy(h_B, B, K * N * sizeof(float));
+    // memcpy(h_A, A, M * K * sizeof(float));
+    // memcpy(h_B, B, K * N * sizeof(float));
 
     // Allocate device memory
-    float *d_A, *d_B, *d_C;
-    cudaStat = cudaMalloc((void**)&d_A, M * K * sizeof(float));
-    cudaStat = cudaMalloc((void**)&d_B, K * N * sizeof(float));
+    float *d_A = A;
+    float *d_B = B;
+    float *d_C;
+    // cudaStat = cudaMalloc((void**)&d_A, M * K * sizeof(float));
+    // cudaStat = cudaMalloc((void**)&d_B, K * N * sizeof(float));
     cudaStat = cudaMalloc((void**)&d_C, M * N * sizeof(float));
 
 
     // Copy matrices A and B to device (cuBLAS expects column-major format)
-    stat = cublasSetMatrix(M, K, sizeof(float), h_A, M, d_A, M);  // Copy A
-    stat = cublasSetMatrix(K, N, sizeof(float), h_B, K, d_B, K);  // Copy B
+    // stat = cublasSetMatrix(M, K, sizeof(float), h_A, M, d_A, M);  // Copy A
+    // stat = cublasSetMatrix(K, N, sizeof(float), h_B, K, d_B, K);  // Copy B
 
     // Initialize cuBLAS handle
     stat = cublasCreate(&handle);
@@ -82,16 +84,17 @@ void matmul(const int M, const int N, const int K, float *A, float *B, float *C)
     }
     // transpose d_C
     // Copy result matrix C back to host
-    stat = cublasGetMatrix(M, N, sizeof(float), d_C_transposed, M, h_C, M);
+    // stat = cublasGetMatrix(M, N, sizeof(float), d_C_transposed, M, h_C, M);
+    *C = d_C_transposed;
 
     // Destroy cuBLAS handle
     cublasDestroy(handle);
 
     // Free device memory
-    cudaFree(d_A);
-    cudaFree(d_B);
-    cudaFree(d_C);
-
-    memcpy(C, h_C, M * N * sizeof(float));
+    // cudaFree(d_A);
+    // cudaFree(d_B);
+    // cudaFree(d_C);
+    //
+    // memcpy(C, h_C, M * N * sizeof(float));
 }
 }

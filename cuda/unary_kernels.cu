@@ -99,7 +99,7 @@ extern  "C" {
     void checkkData(const int len, float* ptr) {
         printf("got len %d\n", len);
         printf("ptr %p\n", ptr);
-        // checkData(len, ptr);
+        checkData(len, ptr);
     }
 }
 

@@ -30,12 +30,14 @@ where
         for param in &mut self.parameters {
             let param_id = param.read().unwrap().id;
             let mut p = param.write().unwrap();
+            p.cpu();
 
             let grad_param = grad.get(&param_id).unwrap().clone();
             let new_param = p.clone() - (grad_param * self.lr.clone());
             p.data = new_param.data;
             p.shape = new_param.shape;
             p.clear_graph();
+            p.cuda();
         }
     }
 }

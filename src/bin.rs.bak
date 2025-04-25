@@ -1,0 +1,77 @@
+// use neuroxide::idk::cuda_main;
+// struct test {
+//     a: *mut f32
+// }
+
+use std::sync::{Arc, RwLock};
+use std::time::{SystemTime, UNIX_EPOCH};
+use neuroxide::ops::add::AddOp;
+use neuroxide::ops::cos::CosOp;
+use neuroxide::ops::div::DivOp;
+use neuroxide::ops::matmul::MatMulOp;
+use neuroxide::ops::mul::MulOp;
+use neuroxide::ops::op_generic::Operation;
+use neuroxide::ops::pow::PowOp;
+use neuroxide::ops::sin::SinOp;
+use neuroxide::ops::sub::SubOp;
+use neuroxide::{ops::ln::LnOp, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+#[cfg(feature = "cuda")]
+extern "C" {
+pub fn matmul(m: i32, n: i32, k: i32, h_A: *mut f32, h_B: *mut f32, h_C: *mut*mut f32) -> CudnnStatusT;
+fn checkkData(len: i32, ptr: *mut f32) -> i32;
+}
+pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
+
+
+fn main() {
+    let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+    let mut c1c = Tensor::<f32>::new(&db, vec![1.0, 2.0, 3.0, 4.0], vec![1, 4], Device::CUDA, false);
+    let mut c2c = Tensor::<f32>::new(&db, vec![5.0, 6.0, 7.0, 8.0], vec![4], Device::CUDA, false);
+    let mut c = MatMulOp::forward(&vec![&c1c, &c2c]);
+    c.cpu();
+    println!("a: {}", c);
+    // let mut data: f32 = 0.0;
+    // let mut ptr_to_data: *mut f32 = &mut data;
+    // unsafe {
+    //     matmul(2, 2, 2, c1c.cuda_ptr.unwrap(), c2c.cuda_ptr.unwrap(), &mut ptr_to_data);
+    //     checkkData(4, ptr_to_data);
+    // }
+    
+    
+}
+
+
+// fn main() {
+//     // cuda_main();
+//     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+//     let db = Arc::new(RwLock::new(TensorDB::<f32>::new(DTypes::F32)));
+//     let a = Tensor::new(&db, vec![3.0], vec![1], Device::CUDA, true);
+//     let b = Tensor::new(&db, vec![6.0], vec![1], Device::CUDA, false);
+//     let mut c = AddOp::forward(&vec![&a, &b]);
+//     let mut d = SubOp::forward(&vec![&a, &c]);
+//     let e = MulOp::forward(&vec![&a, &d]);
+//     let f = DivOp::forward(&vec![&a, &e]);
+//     let g = PowOp::forward(&vec![&a, &f]);
+//
+//     let mut h = SinOp::forward(&vec![&g]);
+//
+//     let mut grad = h.backward(None);
+//     for g in grad.values_mut() {
+//         println!("grad fin: {}", g);
+//     }
+//     
+//     let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+//     // tensor_cpu(&db);
+//     // c.cpu();
+//     // println!("a: {}", a);
+//     // println!("b: {}", b);
+//     // println!("c: {}", c);
+//     // println!("d: {}", d);
+//     // println!("e: {}", e);
+//     // println!("f: {}", f);
+//     // println!("g: {}", g);
+//     //
+//     //
+//     // println!("h: {}", h);
+//     println!("Time: {:?}", end - start);
+// }
