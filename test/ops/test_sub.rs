@@ -45,11 +45,13 @@ fn forward_cuda() {
     let mut c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CUDA, false);
     let mut c2c = Tensor::new(&db, vec![6.0], vec![1], Device::CUDA, false);
     let mut result = SubOp::forward(&vec![&c1c, &c2c]);
+    result.cpu();
     assert_eq!(result.data[0], 9.0);
 
     c1c = Tensor::<f32>::new(&db, vec![15.0, 4.1, 2.3, 34.1], vec![2,2], Device::CUDA, false); 
     c2c = Tensor::<f32>::new(&db, vec![6.0, 3.1, 1.3, 4.1], vec![2,2], Device::CUDA, false);
     result = SubOp::forward(&vec![&c1c, &c2c]);
+    result.cpu();
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], c1c.data[i] - c2c.data[i], epsilon = f32::EPSILON));
     }

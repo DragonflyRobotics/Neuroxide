@@ -20,7 +20,8 @@ fn insert_get() {
         op_chain: Default::default(),
         op_head: 0,
         op: Ops::TensorEnum,
-        dtype: db.clone()
+        dtype: db.clone(),
+        cuda_ptr: None
     };
     db.write().unwrap().insert(x.clone());
     assert!(db.read().unwrap().get(0).unwrap().data == vec![5.0]);

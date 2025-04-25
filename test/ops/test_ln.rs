@@ -50,7 +50,8 @@ fn forward_macro() {
 fn forward_cuda() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let x = Tensor::<f32>::new(&db, vec![0.0, 3.14/6.0, 3.14/4.0, 3.14/3.0, 3.14], vec![5], Device::CUDA, false);
-    let result = LnOp::forward(&vec![&x]);
+    let mut result = LnOp::forward(&vec![&x]);
+    result.cpu();
 
     for i in 0..result.data.len() {
         assert!(relative_eq!(result.data[i], x.data[i].ln(), epsilon = f32::EPSILON));
