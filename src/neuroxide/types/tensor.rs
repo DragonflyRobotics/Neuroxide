@@ -142,6 +142,13 @@ where
     }
 
     pub fn backward(&self, dx: Option<Vec<i32>>) -> HashMap<i32, Tensor<T>> {
+        let mut db_mut = self.dtype.write().unwrap();
+        for node in db_mut.get_all_mut() {
+            node.cpu();
+        }
+        drop(db_mut);
+
+
         let mut all_leaves = Vec::new();
         {
             let db = self.dtype.read().unwrap();
@@ -168,7 +175,7 @@ where
             let path = algo::all_simple_paths::<Vec<_>, _>(&self.op_chain, self.id, leaf, 0, None).collect::<Vec<_>>();
             paths.insert(leaf, path);
         }
-        println!("All paths: {:?}", paths);
+        // println!("All paths: {:?}", paths);
 
         let mut grad = HashMap::new();
 
@@ -213,8 +220,8 @@ where
                         let op_type = db.get(p[i]).unwrap().op.clone();
                         let input_shapes = inputs.iter().map(|x| x.shape.len()).collect::<Vec<_>>();
                         let mut output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
-                        output.cpu();
-                        println!("output: {}", output);
+                        // output.cpu();
+                        // println!("output: {}", output);
                         let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();
                         drop(db);
                         if let Ops::MatMulEnum = op_type {
@@ -234,7 +241,7 @@ where
                             // println!("temp: {}", temp);
                             // println!("output: {}", output);
                             temp = MulOp::forward(&vec![&output, &temp]);
-                            println!("temp: {}", temp);
+                            // println!("temp: {}", temp);
                         }
                     }
                     // println!("output: ");

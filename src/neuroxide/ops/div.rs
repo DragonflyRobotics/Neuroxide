@@ -39,10 +39,6 @@ where
 
         let mut f = inputs[0].clone();         
         let mut g = inputs[1].clone();
-        f.cpu();
-        g.cpu();
-        // println!("Div F {}", f.device);
-        // println!("Div G {}", g.device);
         let dx_index = if grad.unwrap().id == inputs[0].id {0} else {1};
         let mut grad_data = vec![T::default(); inputs[0].data.len()];
 
