@@ -1,7 +1,8 @@
 extern crate blas_src;
 use std::{sync::{Arc, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
-use neuroxide::{layers::linear::Linear, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
+use libc::free;
+use neuroxide::{layers::linear::Linear, ops::matmul::MatMulOp, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use neuroxide::ops::op_generic::Operation;
 use neuroxide::optimizers::simple_descent::SimpleDescent;
 use rand::Rng;
@@ -15,6 +16,34 @@ extern crate neuroxide;
 // TODO: Enable caching/saving
 // TODO: Add more operations
 
+#[cfg(feature = "cuda")]
+extern "C" {
+pub fn matmul(m: i32, n: i32, k: i32, h_A: *mut f32, h_B: *mut f32, h_C: *mut*mut f32) -> CudnnStatusT;
+fn checkkData(len: i32, ptr: *mut f32) -> i32;
+fn destroyPool();
+fn createPoolMax();
+}
+pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
+//
+// fn main() {
+//     let mut db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
+//     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+//     for i in 0..20 {
+//         let a = Tensor::<f32>::new_uniform(&db, vec![4000, 4000], Device::CUDA, true);
+//         let b = Tensor::<f32>::new_uniform(&db, vec![4000, 4000], Device::CUDA, false);
+//         let mut c = MatMulOp::forward(&vec![&a, &b]);
+//         c.backward(None);
+//         db.write().unwrap().clear();
+//
+//         // unsafe {
+//         //     destroyPool();
+//         //     createPoolMax();
+//         // }
+//     }
+//     println!("dfon3");
+//     let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+//     println!("Time taken: {:?} seconds", end-start);
+// }
 
 
 

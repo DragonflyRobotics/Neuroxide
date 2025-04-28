@@ -6,6 +6,7 @@
 
 // For the CUDA runtime routines (prefixed with "cuda_")
 #include <cuda_runtime.h>
+#include "pool.cuh"
 
 // TODO: Free all tensors moved to cpu
 inline bool verifyAllocations(float* var)
@@ -30,8 +31,8 @@ inline bool checkCUDASuccess(cudaError_t err)
 
 inline float* allocateCUDAMemory(size_t size)
 {
-    float *d_var = NULL;
-    checkCUDASuccess(cudaMalloc((void **)&d_var, size));
+    float *d_var = pool.malloc(size);
+    // checkCUDASuccess(cudaMalloc((void **)&d_var, size));
     return d_var;
 }
 

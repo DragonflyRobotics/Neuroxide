@@ -1,6 +1,12 @@
-import numpy as np 
+import torch
+import time
 
-a = np.array([1, 2, 3, 4])
-b = np.array([5, 6, 7, 8])
-c = np.dot(a, b)
-print(c)
+start = time.time()
+for _ in range(20):
+    a = torch.randn(4000, 4000).to('cuda')
+    b = torch.randn(4000, 4000).to('cuda')
+    c = torch.matmul(a, b)
+end = time.time()
+print(f"Time taken for 2000 matrix multiplications: {end - start:.5f} seconds")
+
+

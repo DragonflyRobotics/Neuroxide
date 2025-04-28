@@ -101,6 +101,12 @@ extern  "C" {
         printf("ptr %p\n", ptr);
         checkData(len, ptr);
     }
+    void destroyPool() {
+        pool.destroy();
+    }
+    void createPoolMax() {
+        pool.reset();
+    }
 }
 
 

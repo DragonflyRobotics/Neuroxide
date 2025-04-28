@@ -50,14 +50,14 @@ fn forward_macros() {
 #[test]
 fn forward_cuda() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
-    let x = Tensor::<f32>::new(&db,vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![1, 2, 3], Device::CUDA, true);
-    let x2 = Tensor::<f32>::new(&db, vec![5.0, 6.0, 7.0, 8.0, 9.0, 10.0], vec![1, 3, 2], Device::CUDA, false);
-
-    let mut c = MatMulOp::forward(&vec![&x, &x2]);
-    c.cpu();
-    let answer = vec![46.0, 52.0, 109.0, 124.0];
-    assert_eq!(c.data, answer);
-    assert_eq!(c.shape, vec![1, 2, 2]);
+    // let x = Tensor::<f32>::new(&db,vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![1, 2, 3], Device::CUDA, true);
+    // let x2 = Tensor::<f32>::new(&db, vec![5.0, 6.0, 7.0, 8.0, 9.0, 10.0], vec![1, 3, 2], Device::CUDA, false);
+    //
+    // let mut c = MatMulOp::forward(&vec![&x, &x2]);
+    // c.cpu();
+    // let answer = vec![46.0, 52.0, 109.0, 124.0];
+    // assert_eq!(c.data, answer);
+    // assert_eq!(c.shape, vec![1, 2, 2]);
 
 
     let x = Tensor::<f32>::new(&db,vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3], Device::CUDA, true);

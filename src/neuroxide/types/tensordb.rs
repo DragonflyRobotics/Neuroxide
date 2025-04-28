@@ -54,6 +54,10 @@ impl <T> TensorDB<T> {
     pub fn get_all_mut(&mut self) -> Vec<&mut Tensor<T>> {
         self.tensors.values_mut().collect()
     }
+
+    pub fn clear(&mut self) {
+        self.tensors.clear();
+    }
 }
 
 pub fn assert_types<T>(dtype: DTypes, data_sample: T) {
