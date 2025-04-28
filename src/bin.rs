@@ -24,23 +24,21 @@ fn destroyPool();
 fn createPoolMax();
 }
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
-//
+
 // fn main() {
 //     let mut db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
 //     let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
 //     for i in 0..20 {
-//         let a = Tensor::<f32>::new_uniform(&db, vec![4000, 4000], Device::CUDA, true);
+//         let a = Tensor::<f32>::new_uniform(&db, vec![4000, 4000], Device::CUDA, false);
 //         let b = Tensor::<f32>::new_uniform(&db, vec![4000, 4000], Device::CUDA, false);
 //         let mut c = MatMulOp::forward(&vec![&a, &b]);
-//         c.backward(None);
-//         db.write().unwrap().clear();
+//         // c.backward(None);
 //
 //         // unsafe {
 //         //     destroyPool();
 //         //     createPoolMax();
 //         // }
 //     }
-//     println!("dfon3");
 //     let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
 //     println!("Time taken: {:?} seconds", end-start);
 // }

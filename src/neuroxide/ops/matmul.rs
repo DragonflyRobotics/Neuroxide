@@ -128,7 +128,7 @@ where
                     }
                 }
                 else if shape1.len() == 2 && shape2.len() == 2 {
-                    result = vec![T::default(); shape1[0] * shape2[1]];
+                    result = vec![T::default(); 1];
                     #[cfg(feature = "cuda")]
                     unsafe {
                         // let a_shape = shape1.clone();
