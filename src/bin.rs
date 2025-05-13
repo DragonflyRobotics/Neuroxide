@@ -68,7 +68,6 @@ fn main() {
 
         optim.step(&grad);
 
-        // println!("Epoch: {} Loss: {}", iteration, loss);
     } 
 
     let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16], Device::CUDA, false);
