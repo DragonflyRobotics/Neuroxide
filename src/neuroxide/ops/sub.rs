@@ -89,21 +89,23 @@ where
     fn sub(self, other: Tensor<T>) -> Tensor<T> {
         assert!(self.device == other.device);
         
-        let mut a = self.clone();
-        let mut b = other.clone();
-        let mut a_arr = ArrayD::from_shape_vec(a.shape.clone(), a.data.clone()).unwrap();
-        let mut b_arr = ArrayD::from_shape_vec(b.shape.clone(), b.data.clone()).unwrap();
-        let res = broadcast_shapes_linear(&mut a.shape, &mut b.shape);
-        res.unwrap();
-        assert!(a.shape == b.shape);
-        a_arr = a_arr.broadcast(a.shape).unwrap().to_owned();
-        b_arr = b_arr.broadcast(b.shape).unwrap().to_owned();
-        let final_shape: Vec<usize> = a_arr.shape().iter().map(|x| *x as usize).collect();
+        let mut final_shape: Vec<usize> = self.shape.clone();
         
         let result: Vec<T>; // = vec![T::default(); len as usize];
         let mut cuda_ptr: Option<*mut f32> = None;
         match self.device {
             Device::CPU => {
+                let mut a = self.clone();
+                let mut b = other.clone();
+                let mut a_arr = ArrayD::from_shape_vec(a.shape.clone(), a.data.clone()).unwrap();
+                let mut b_arr = ArrayD::from_shape_vec(b.shape.clone(), b.data.clone()).unwrap();
+                let res = broadcast_shapes_linear(&mut a.shape, &mut b.shape);
+                res.unwrap();
+                assert!(a.shape == b.shape);
+                a_arr = a_arr.broadcast(a.shape).unwrap().to_owned();
+                b_arr = b_arr.broadcast(b.shape).unwrap().to_owned();
+                final_shape = a_arr.shape().iter().map(|x| *x as usize).collect();
+
                 let res = a_arr - b_arr;
                 result = res.iter().map(|&x| x.clone()).collect();
             }
@@ -111,10 +113,10 @@ where
                 #[cfg(feature = "cuda")]
                 unsafe {
                     assert!(self.shape == other.shape);
-                    let a_flat = a_arr.as_slice().unwrap();
+                    // let a_flat = a_arr.as_slice().unwrap();
                     // let b_flat = b_arr.as_slice().unwrap();
                     
-                    let len: i32 = a_flat.len() as i32;
+                    let len: i32 = self.shape.iter().map(|x| *x as i32).product();
                     let mut data: f32 = 0.0;
                     let mut ptr_to_data: *mut f32 = &mut data;
                     sub_kernel(len, a.cuda_ptr.unwrap(), b.cuda_ptr.unwrap(), &mut ptr_to_data);
