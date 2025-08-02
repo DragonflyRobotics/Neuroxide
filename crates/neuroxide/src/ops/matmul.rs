@@ -1,18 +1,16 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
-use libc::time;
 use ndarray::{Array1, Array2, Array3, ArrayD, Axis, Ix1, Ix2, Ix3, IxDyn};
 use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
-use crate::types::T::TensorElement;
+use crate::types::t::TensorElement;
 use crate::utils::array_utils::broadcast_shapes_matmul;
 use crate::utils::node_uid::make_node_uid;
+use cfg_if::cfg_if;
 
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
 pub fn matmul(m: i32, n: i32, k: i32, h_A: *mut f32, h_B: *mut f32, h_C: *mut*mut f32) -> CudnnStatusT;
 }
 
@@ -38,7 +36,14 @@ where
         // println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
-        let mut cuda_ptr: Option<*mut f32> = None;
+        cfg_if! {
+            if #[cfg(feature = "cuda")] {
+                let mut cuda_ptr: Option<*mut f32> = None;
+            } else {
+                let cuda_ptr: Option<*mut f32> = None;
+            }
+        }
+
         match inputs[0].device {
             Device::CPU => {
 

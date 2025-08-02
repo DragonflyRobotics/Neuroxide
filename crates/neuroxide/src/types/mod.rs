@@ -1,4 +1,4 @@
 pub mod tensor;
 pub mod device;
 pub mod tensordb;
-pub mod T;
+pub mod t;

@@ -1,0 +1,29 @@
+[package]
+name = "neuroxide_main"
+version = "0.1.0"
+edition = "2024"
+build = "../build.rs"
+
+[[bin]]
+name = "neuroxide_main"
+path = "src/main.rs"
+
+[[test]]
+name = "neuroxide_test"
+path = "../test/test.rs"
+
+[[bench]]
+name = "neuroxide_bench"
+path = "../bench/bench.rs"
+
+[dependencies]
+neuroxide = { path = "../crates/neuroxide" }
+mempool = { path = "../crates/mempool" }
+approx.workspace = true
+# Other dependencies inherited from workspace
+
+[build-dependencies]
+cc.workspace = true
+
+[features]
+cuda = [] 

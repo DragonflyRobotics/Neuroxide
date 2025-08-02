@@ -4,22 +4,23 @@ use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
-use crate::types::T::TensorElement;
+use crate::types::t::TensorElement;
 use crate::utils::array_utils::broadcast_shapes_linear;
 use crate::utils::node_uid::make_node_uid;
+use cfg_if::cfg_if;
 
 #[cfg(feature = "cuda")]
-extern "C" {
-pub fn div_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
+unsafe extern "C" {
+pub fn mul_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 
 
 #[derive(Debug, Clone)]
-pub struct DivOp;
+pub struct MulOp;
 
-impl<T> Operation<T> for DivOp
+impl<T> Operation<T> for MulOp
 where
     T: TensorElement
 {
@@ -27,7 +28,7 @@ where
         assert!(inputs.len() == 2);
         assert!(inputs[0].device == inputs[1].device);
         assert!(inputs[0].dtype.read().unwrap().get_dtype() == inputs[1].dtype.read().unwrap().get_dtype());
-        let t = inputs[0].clone() / inputs[1].clone();
+        let t = inputs[0].clone() * inputs[1].clone();
         // let db = inputs[0].dtype.clone();
         // db.write().unwrap().insert(t.clone());
         // drop(db);
@@ -37,64 +38,52 @@ where
     fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
         assert!(inputs.len() == 2);
 
-        let mut f = inputs[0].clone();         
-        let mut g = inputs[1].clone();
-        let dx_index = if grad.unwrap().id == inputs[0].id {0} else {1};
-        let mut grad_data = vec![T::default(); inputs[0].data.len()];
+        //get index of grad in inputs without for loop
+        let grad_index = inputs.iter().position(|&x| x.id == grad.unwrap().id).unwrap();
 
-        if dx_index == 0 {
-            for i in 0..inputs[0].data.len() {
-                grad_data[i] = T::one() / g.data[i];
-            }
-        } else {
-            for i in 0..inputs[0].data.len() {
-                grad_data[i] = T::from(-1.0).unwrap() * (f.data[i] / (g.data[i] * g.data[i]));
-            }
-        }
-        // println!("Div Grad Data {:?}", grad_data);
-        // println!("Div Shape {:?}", inputs[0].shape);
 
-        Tensor {
-            id: inputs[0].id,
-            data: grad_data,
-            shape: inputs[0].shape.clone(),
-            device: Device::CPU,
-            op: Ops::DivEnum,
-            requires_grad: inputs[0].requires_grad,
-            op_chain: inputs[0].op_chain.clone(),
-            op_head: inputs[0].op_head,
-            dtype: inputs[0].dtype.clone(),
-            cuda_ptr: None // TODO: Fix this
-        }
+        return inputs[1 - grad_index].clone(); 
     }
 }
 
 
-impl<T> std::ops::Div for Tensor<T>
+impl<T> std::ops::Mul for Tensor<T>
 where
-    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + std::ops::Div<Output = T> + Copy + Default + NumCast
+    T: std::ops::Add<Output = T> + std::ops::Mul<Output = T> + Copy + Default + NumCast
 {
     type Output = Tensor<T>;
 
-    fn div(self, other: Tensor<T>) -> Tensor<T> {
+    fn mul(self, other: Tensor<T>) -> Tensor<T> {
         assert!(self.device == other.device);
-
+        
         let mut a = self.clone();
         let mut b = other.clone();
         let mut a_arr = ArrayD::from_shape_vec(a.shape.clone(), a.data.clone()).unwrap();
         let mut b_arr = ArrayD::from_shape_vec(b.shape.clone(), b.data.clone()).unwrap();
         let res = broadcast_shapes_linear(&mut a.shape, &mut b.shape);
-        res.unwrap();
+        if res.is_err() {
+            panic!("Shapes are not broadcastable");
+        }
         assert!(a.shape == b.shape);
         a_arr = a_arr.broadcast(a.shape).unwrap().to_owned();
         b_arr = b_arr.broadcast(b.shape).unwrap().to_owned();
-
         let final_shape: Vec<usize> = a_arr.shape().iter().map(|x| *x as usize).collect();
+        
+        
+
         let result: Vec<T>;//vec![T::default(); len as usize];
-        let mut cuda_ptr: Option<*mut f32> = None;
+        cfg_if! {
+            if #[cfg(feature = "cuda")] {
+                let mut cuda_ptr: Option<*mut f32> = None;
+            } else {
+                let cuda_ptr: Option<*mut f32> = None;
+            }
+        }
         match self.device {
             Device::CPU => {
-                result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a / *b).collect();
+                let res = a_arr * b_arr;
+                result = res.iter().map(|&x| x.clone()).collect();
+                // result = self.data.iter().zip(other.data.iter()).map(|(a, b)| *a * *b).collect();
             }
             Device::CUDA => {
                 #[cfg(feature = "cuda")]
@@ -106,9 +95,9 @@ where
                     let len: i32 = a_flat.len() as i32;
                     let mut data: f32 = 0.0;
                     let mut ptr_to_data: *mut f32 = &mut data;
-                    div_kernel(len, a.cuda_ptr.unwrap(), b.cuda_ptr.unwrap(), &mut ptr_to_data);
+                    mul_kernel(len, a.cuda_ptr.unwrap(), b.cuda_ptr.unwrap(), &mut ptr_to_data);
                     cuda_ptr = Some(ptr_to_data);
-                    let mut r = vec![0.0; len as usize];
+                    let r = vec![0.0; len as usize];
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
                 }
 
@@ -151,7 +140,7 @@ where
             data: result,
             shape: final_shape,
             device: self.device,
-            op: Ops::DivEnum,
+            op: Ops::MulEnum,
             requires_grad: self.requires_grad || other.requires_grad,
             op_chain: result_graph,
             op_head: result_id,
@@ -165,4 +154,3 @@ where
         t
     }
 }
-

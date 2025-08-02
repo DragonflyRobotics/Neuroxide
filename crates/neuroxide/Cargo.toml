@@ -1,0 +1,21 @@
+[package]
+name = "neuroxide"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+approx.workspace = true 
+libc.workspace = true
+num.workspace = true 
+ndarray.workspace = true 
+blas-src.workspace = true 
+once_cell.workspace = true 
+petgraph.workspace = true 
+rand.workspace = true 
+pkg-config.workspace = true 
+trait-set.workspace = true 
+cfg-if = "1.0.1"
+
+[features]
+cuda = [] 

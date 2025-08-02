@@ -1,6 +1,9 @@
 extern crate cc;
 
 #[cfg(feature = "cuda")] fn main() { use std::env; use std::path::PathBuf; use std::fs; // Check for the CUDA toolkit installation path
+    let current_dir = env::current_dir().expect("Failed to get current dir");
+    println!("cargo:warning=Current directory: {}", current_dir.display());
+
     let cuda_path = match env::var("CUDA_PATH") {
         Ok(path) => PathBuf::from(path),
         Err(_) => PathBuf::from("/usr/local/cuda"), // fallback path for Linux
@@ -16,7 +19,11 @@ extern crate cc;
     println!("cargo:rustc-link-lib=cudart");
     println!("cargo:rustc-link-lib=cublas");
 
-    let cuda_dir = "cuda"; // Replace with your actual directory if different
+    println!("cargo:rustc-link-lib=dylib=stdc++");
+
+
+    // TODO: Fix this to be solid later
+    let cuda_dir = "../cuda"; // Replace with your actual directory if different
 
     // Compile all CUDA files in the directory
     if let Ok(entries) = fs::read_dir(cuda_dir) {
@@ -24,22 +31,10 @@ extern crate cc;
             if let Some(extension) = entry.path().extension() {
                 if extension == "cu" {
                     let mut build = cc::Build::new();
-                    build.cuda(true);
-                    build.flag("-cudart=shared");
+                    build.compiler("clang++"); // Use clang++ for CUDA compilation
+                    build.flag("-O3"); // or any standard you want
 
-                    // Add each gencode specification individually
-                    let gencode_flags = [
-                        "arch=compute_50,code=sm_50",
-                        "arch=compute_60,code=sm_60",
-                        "arch=compute_61,code=sm_61",
-                        "arch=compute_70,code=sm_70",
-                        "arch=compute_75,code=sm_75",
-                        "arch=compute_80,code=sm_80",
-                    ];
-
-                    for flag in &gencode_flags {
-                        build.flag("-gencode").flag(flag);
-                    }
+                    print!("Compiling CUDA file: {}", entry.path().display());
 
                     build.file(entry.path())
                         .compile(format!("lib{}.a", entry.path().file_stem().unwrap().to_str().unwrap()).as_str());

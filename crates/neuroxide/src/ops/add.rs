@@ -4,13 +4,14 @@ use petgraph::prelude::GraphMap;
 use crate::ops::op_generic::{Ops, Operation};
 use crate::types::device::Device;
 use crate::types::tensor::Tensor;
-use crate::types::T::TensorElement;
+use crate::types::t::TensorElement;
 use crate::utils::array_utils::broadcast_shapes_linear;
 use crate::utils::node_uid::make_node_uid;
+use cfg_if::cfg_if;
 
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
 pub fn add_kernel(len: i32, a: *mut f32, b: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 }
 
@@ -90,7 +91,13 @@ where
         let mut final_shape: Vec<usize> = self.shape.clone();
         
         let result: Vec<T>; // = vec![T::default(); len as usize];
-        let mut cuda_ptr: Option<*mut f32> = None;
+        cfg_if! {
+            if #[cfg(feature = "cuda")] {
+                let mut cuda_ptr: Option<*mut f32> = None;
+            } else {
+                let cuda_ptr: Option<*mut f32> = None;
+            }
+        }
         match self.device {
             Device::CPU => {
                 let mut a = self.clone();
@@ -120,7 +127,7 @@ where
                     let mut ptr_to_data: *mut f32 = &mut data;
                     add_kernel(len, self.cuda_ptr.unwrap(), other.cuda_ptr.unwrap(), &mut ptr_to_data);
                     cuda_ptr = Some(ptr_to_data);
-                    let mut r = vec![0.0; len as usize];
+                    let r = vec![0.0; len as usize];
                     result = r.iter().map(|&x| <T as NumCast>::from(x).unwrap()).collect();
                 }
                 #[cfg(not(feature = "cuda"))]

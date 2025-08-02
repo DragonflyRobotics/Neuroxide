@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::{Arc, RwLock}};
 
-use crate::types::{tensor::Tensor, tensordb::TensorDB, T::TensorElement};
+use crate::types::{tensor::Tensor, tensordb::TensorDB, t::TensorElement};
 
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     fn toCuda(size: i32, data: *mut f32) -> *mut f32;
     fn checkkData(len: i32, ptr: *mut f32) -> i32;
     fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;

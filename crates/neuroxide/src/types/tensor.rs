@@ -5,12 +5,13 @@ use ndarray::{ArrayD, IxDyn};
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
 use rand::Rng;
+use cfg_if::cfg_if;
 
-use super::{tensordb::{assert_types, TensorDB}, T::TensorElement};
+use super::{tensordb::{assert_types, TensorDB}, t::TensorElement};
 
 
 #[cfg(feature = "cuda")]
-extern "C" {
+unsafe extern "C" {
     fn toCuda(size: i32, data: *mut f32) -> *mut f32;
     fn checkkData(len: i32, ptr: *mut f32) -> i32;
     fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
@@ -38,7 +39,13 @@ where
 {
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, data: Vec<T>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
         assert_types(db.read().unwrap().get_dtype(), data[0]);
-        let mut cuda_ptr: Option<*mut f32> = None;
+        cfg_if! {
+            if #[cfg(feature = "cuda")] {
+                let mut cuda_ptr: Option<*mut f32> = None;
+            } else {
+                let cuda_ptr: Option<*mut f32> = None;
+            }
+        }
         if device == Device::CUDA {
             assert!(db.read().unwrap().get_dtype() == DTypes::F32, "CUDA only supports f32");
             #[cfg(feature = "cuda")]
@@ -103,8 +110,8 @@ where
     }
 
     pub fn new_uniform(db: &Arc<RwLock<TensorDB<T>>>, shape: Vec<usize>, device: Device, requires_grad: bool) -> Tensor<T> {
-        let mut rng = rand::thread_rng();
-        let data = (0..shape.iter().product()).map(|_| T::from(rng.gen::<f32>()).unwrap()).collect(); 
+        let mut rng = rand::rng();
+        let data = (0..shape.iter().product()).map(|_| T::from(rng.random::<f32>()).unwrap()).collect(); 
         Tensor::new(db, data, shape, device, requires_grad)
     }
 
@@ -172,7 +179,7 @@ where
         }
         let mut paths = HashMap::new(); 
         for leaf in all_leaves.clone() {
-            let path = algo::all_simple_paths::<Vec<_>, _>(&self.op_chain, self.id, leaf, 0, None).collect::<Vec<_>>();
+            let path = algo::all_simple_paths::<Vec<_>, _, std::hash::RandomState>(&self.op_chain, self.id, leaf, 0, None).collect::<Vec<_>>();
             paths.insert(leaf, path);
         }
         // println!("All paths: {:?}", paths);
@@ -219,7 +226,7 @@ where
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                         let op_type = db.get(p[i]).unwrap().op.clone();
                         let input_shapes = inputs.iter().map(|x| x.shape.len()).collect::<Vec<_>>();
-                        let mut output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                        let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
                         // output.cpu();
                         // println!("output: {}", output);
                         let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();

@@ -1,4 +1,4 @@
-use crate::types::{tensor::Tensor, T::TensorElement};
+use crate::types::{tensor::Tensor, t::TensorElement};
 
 pub trait Operation<T: TensorElement>: std::fmt::Debug {
     fn forward(input: &Vec<&Tensor<T>>) -> Tensor<T>;

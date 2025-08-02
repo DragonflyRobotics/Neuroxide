@@ -2,16 +2,15 @@ use libc::size_t;
 
 #[cfg(feature = "cuda")]
 #[link(name = "cudart")]
-extern "C" {
-fn cudaGetDeviceCount(count: *mut i32) -> CudnnStatusT;
+unsafe extern "C" {
+    fn cudaGetDeviceCount(count: *mut i32) -> CudnnStatusT;
 }
 
 #[cfg(feature = "cuda")]
-extern "C" {
-fn getDeviceName_main(name: *mut u8, device: i32) -> CudnnStatusT;
-fn getTotalMem_main(mem: *mut size_t, device: i32) -> CudnnStatusT;
+unsafe extern "C" {
+    fn getDeviceName_main(name: *mut u8, device: i32) -> CudnnStatusT;
+    fn getTotalMem_main(mem: *mut size_t, device: i32) -> CudnnStatusT;
 }
-
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 

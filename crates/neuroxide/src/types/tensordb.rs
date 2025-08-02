@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::collections::HashMap;
 use crate::{types::tensor::Tensor, utils::types::print_type_of};
 
 #[derive(Clone, PartialEq)]
