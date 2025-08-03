@@ -23,7 +23,7 @@ extern crate cc;
 
 
     // TODO: Fix this to be solid later
-    let cuda_dir = "../cuda"; // Replace with your actual directory if different
+    let cuda_dir = "cuda"; // Replace with your actual directory if different
 
     // Compile all CUDA files in the directory
     if let Ok(entries) = fs::read_dir(cuda_dir) {

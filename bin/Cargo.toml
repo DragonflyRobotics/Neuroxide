@@ -2,7 +2,6 @@
 name = "neuroxide_main"
 version = "0.1.0"
 edition = "2024"
-build = "../build.rs"
 
 [[bin]]
 name = "neuroxide_main"
@@ -21,9 +20,6 @@ neuroxide = { path = "../crates/neuroxide" }
 mempool = { path = "../crates/mempool" }
 approx.workspace = true
 # Other dependencies inherited from workspace
-
-[build-dependencies]
-cc.workspace = true
 
 [features]
 cuda = [] 

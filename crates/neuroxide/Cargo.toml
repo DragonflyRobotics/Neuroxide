@@ -2,7 +2,7 @@
 name = "neuroxide"
 version = "0.1.0"
 edition = "2024"
-
+build = "build.rs"
 
 [dependencies]
 approx.workspace = true 
@@ -16,6 +16,9 @@ rand.workspace = true
 pkg-config.workspace = true 
 trait-set.workspace = true 
 cfg-if = "1.0.1"
+
+[build-dependencies]
+cc.workspace = true
 
 [features]
 cuda = [] 
