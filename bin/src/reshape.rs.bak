@@ -1,0 +1,88 @@
+use std::any::Any;
+
+use serde_json::Value;
+
+
+
+fn main() {
+    let data = vec![1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6];
+    let shape: [usize; 3] = [2, 2, 3];
+    println!("{:?}", recursive_reshape(data, &shape));
+
+    // println!("Hello, world!");
+    // let shaped = solve(data, shape);
+    // let shape = vec![2, 2];
+    // let shaped = solve(shaped, shape);
+    // let shape = vec![2];
+    // solve(shaped, shape);
+}
+
+fn solve<T: serde::Serialize + Clone + std::fmt::Debug>(mut shaped_data: Vec<T>, mut shape: Vec<usize>) -> Vec<Vec<T>> {
+    if shape.len() >= 2 {
+        let drain_size: usize = shape.pop().unwrap();
+        let last_dim: usize = shaped_data.len()/drain_size;
+        let mut shaped_arr: Vec<Vec<T>> = vec![];
+        for _ in 0..last_dim {
+            let slice = shaped_data.drain(0..drain_size);
+            shaped_arr.push(slice.collect());
+        }
+        println!("{:?}", shaped_arr);
+        return shaped_arr;
+        // return solve::<Vec<Vec<T>>>(shaped_arr, shape);
+    }
+    else {
+        println!("{:?}", shape);
+        panic!("Done");
+    }
+}
+
+fn reshape_one_dim<T: Clone + std::fmt::Debug>(
+    shaped_data: Vec<T>,
+    dim: usize,
+) -> Vec<Vec<T>> {
+    let last_dim = shaped_data.len() / dim;
+    let mut shaped_arr = vec![];
+    let mut data = shaped_data;
+    for _ in 0..last_dim {
+        let slice = data.drain(0..dim);
+        shaped_arr.push(slice.collect());
+    }
+    shaped_arr
+}
+
+fn recursive_reshape<T: Clone + std::fmt::Debug + 'static>(
+    data: Vec<T>,
+    shape: &[usize],
+) -> Box<dyn Any> {
+    if shape.len() < 2 {
+        return Box::new(data);
+    }
+    let dim = shape[shape.len() - 1];
+    let reshaped = reshape_one_dim(data, dim);
+
+    let next_shape = &shape[..shape.len() - 1];
+    let mut result = Vec::new();
+    for chunk in reshaped {
+        result.push(recursive_reshape(chunk, next_shape));
+    }
+    Box::new(result)
+}
+
+
+/// Helper function to recursively print the nested structure.
+/// Tries to downcast the Box<dyn Any> into Vec<Box<dyn Any>> or Vec<T>.
+fn print_nested<T: std::fmt::Debug + 'static>(value: &Box<dyn Any>, indent: usize) {
+    let indent_str = "  ".repeat(indent);
+    if let Some(vec_of_any) = value.downcast_ref::<Vec<Box<dyn Any>>>() {
+        println!("{}[", indent_str);
+        for v in vec_of_any {
+            print_nested(v, indent + 1);
+        }
+        println!("{}]", indent_str);
+    } else if let Some(vec_t) = value.downcast_ref::<Vec<T>>() {
+        println!("{}{:?}", indent_str, vec_t);
+    } else {
+        println!("{}<Unknown Type>", indent_str);
+    }
+}
+

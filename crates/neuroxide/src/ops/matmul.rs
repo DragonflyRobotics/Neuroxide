@@ -47,8 +47,8 @@ where
         match inputs[0].device {
             Device::CPU => {
 
-                let mut a = ArrayD::<T>::from_shape_vec(IxDyn(&shape1), inputs[0].data.clone()).unwrap();
-                let mut b = ArrayD::<T>::from_shape_vec(IxDyn(&shape2), inputs[1].data.clone()).unwrap();
+                let mut a = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[0].shape), inputs[0].data.clone()).unwrap();
+                let mut b = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1].shape), inputs[1].data.clone()).unwrap();
 
                 // println!("{:?} X {:?} --> {:?}", shape1, shape2, shape);
                 let a_option = a.broadcast(shape1.clone());
@@ -64,18 +64,12 @@ where
                     b = b_option.unwrap().to_owned();
                 }
 
-
-
                 if shape1.len() == 1 && shape2.len() == 1 {
                     let a: Array1<T> = a.into_dimensionality::<Ix1>().unwrap();
                     let b: Array1<T> = b.into_dimensionality::<Ix1>().unwrap();
 
-
                     let c = a.dot(&b);
                     result = vec![c];
-                    // shape = vec![1];
-                    // result = c.iter().map(|&x| x).collect();
-                    // shape = vec![c.shape()[0], c.shape()[1]];
                 }
                 else if shape1.len() == 2 && shape2.len() == 2 {
                     let a: Array2<T> = a.into_dimensionality::<Ix2>().unwrap();
@@ -84,31 +78,18 @@ where
                     result = c.iter().map(|&x| x).collect();
                     // shape = vec![c.shape()[0], c.shape()[1]];
                 } 
-                else if shape1.len() == 3 && shape2.len() == 3 {
-                    let a: Array3<T> = a.into_dimensionality::<Ix3>().unwrap();
-                    let b: Array3<T> = b.into_dimensionality::<Ix3>().unwrap();
-
-                    assert!(a.shape()[0] == b.shape()[0]); //batch size
-                    assert!(a.shape()[2] == b.shape()[1]); //inner dimension
-
-                    let batch_size = a.shape()[0];
-                    let m = a.shape()[1];
-                    let n = b.shape()[2];
-
-                    // Initialize the output array
-                    let mut c = Array3::<T>::zeros((batch_size, m, n));
+                else if shape1.len() > 2 && shape2.len() > 2 {
+                    let batch_dims: usize = shape[0..shape.len()-2].to_vec().iter().product();
+                    let a = a.clone().into_shape_with_order(Ix3(batch_dims, a.shape()[a.shape().len()-2], a.shape()[a.shape().len()-1])).unwrap();
+                    let b = b.clone().into_shape_with_order(Ix3(batch_dims, b.shape()[b.shape().len()-2], b.shape()[b.shape().len()-1])).unwrap();
+                    let mut c = Array3::<T>::zeros((batch_dims, shape[shape.len()-2], shape[shape.len()-1]));
                     // Perform batched matrix multiplication
-                    for i in 0..batch_size {
+                    for i in 0..batch_dims {
                         let a_slice: Array2<T> = a.index_axis(Axis(0), i).to_owned(); // (m, k)
                         let b_slice: Array2<T> = b.index_axis(Axis(0), i).to_owned(); // (k, n)
                         c.index_axis_mut(Axis(0), i).assign(&a_slice.dot(&b_slice));
                     }
-                    // println!("{:?}", c);
                     result = c.iter().map(|&x| x).collect();
-                    // shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
-                }
-                else if shape1.len() == 4 && shape2.len() == 4 {
-                    todo!();
                 }
                 else {
                     panic!("Matrix multiplication only supported for 2D tensors");
@@ -180,6 +161,8 @@ where
                     // shape = vec![c.shape()[0], c.shape()[1], c.shape()[2]];
                 }
                 else if shape1.len() == 4 && shape2.len() == 4 {
+                    let batch_dims = shape[0..shape.len()-2].to_vec();
+                    println!("BATCH DIMS: {:?}", batch_dims);
                     todo!();
                 }
                 else {
@@ -270,11 +253,15 @@ where
         else if b_shape.len() == 2 {
             b_t = b_arr.t().to_owned();
             b_t_shape = b_t.shape().to_vec();
-        } else if b_shape.len() == 3 {
-            b_t = b_arr.permuted_axes(IxDyn(&[0, 2, 1])).to_owned();
+        } else if b_shape.len() > 2 {
+            // Permute the axes to get the last two dimensions as the matrix dimensions
+            println!("Permuting axes for shape: {:?}", b_shape);
+            let mut permuted_axes: Vec<usize> = (0..b_shape.len()).collect();
+            permuted_axes.swap(b_shape.len() - 2, b_shape.len() - 1); // Swap the last two axes
+            b_t = b_arr.permuted_axes(IxDyn(&permuted_axes));
+            println!("Permuted shape: {:?}", b_t.shape());
+            // b_t = b_arr.permuted_axes(IxDyn(&[0, 2, 1])).to_owned();
             b_t_shape = b_t.shape().to_vec();
-        } else if b_shape.len() == 4 {
-            todo!();
         } else {
             panic!("Matrix multiplication grad only supported for <=3D tensors");
         }
