@@ -51,7 +51,6 @@ where
             #[cfg(feature = "cuda")]
             {
                 let mut a: Vec<f32> = data.iter().map(|&x| <f32 as num::NumCast>::from(x).unwrap()).collect();
-                println!("Moving {} elements to CUDA", a.len());
                 cuda_ptr = Some(unsafe { toCuda(a.len() as i32, a.as_mut_ptr() as *mut f32) });
             }
         }
@@ -171,7 +170,6 @@ where
                     for node in self.op_chain.nodes() {
                         let outgoing_edges = self.op_chain.edges_directed(node, Outgoing);
                         if outgoing_edges.count() == 0 && db.get(node).unwrap().requires_grad {
-                            println!("{}", db.get(node).unwrap());
                             all_leaves.push(node);
                         }
                     }
@@ -231,8 +229,8 @@ where
                         // println!("derivative of {} w.r.t {}",db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap());
                         let d = db.get(p[i]).unwrap();
                         let dx = db.get(p[i + 1]).unwrap();
-                        println!("d: {}", d);
-                        println!("dx: {}", dx);
+                        // println!("d: {}", d);
+                        // println!("dx: {}", dx);
                         let d_shape = d.shape.clone();
                         let dx_shape = dx.shape.clone();
                         let output = self.match_ops(d, dx, &inputs);
@@ -242,15 +240,15 @@ where
                         drop(db);
                         if let Ops::MatMulEnum = op_type {
                             // output is b_t and temp is downstream so follow upstream dot b_t
-                            println!("{}", temp);
-                            println!("output: {}", output);
+                            // println!("{}", temp);
+                            // println!("output: {}", output);
                             if input_shapes[0] > 1 || input_shapes[1] > 1 {
                                 if grad_index == 0 {
                                     temp = MatMulOp::forward(&vec![&temp, &output]);
                                 } else {
                                     temp = MatMulOp::forward(&vec![&output, &temp]);
                                 }
-                                println!("temp: {}", temp);
+                                // println!("temp: {}", temp);
                                 let mut got = ArrayD::from_shape_vec(IxDyn(&temp.shape), temp.data.clone()).unwrap();
                                 let mut corrected_shape = got.shape().to_vec();
                                 let mut reduce_ctn = 0;

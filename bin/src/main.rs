@@ -1,46 +1,53 @@
-use approx::relative_eq;
-use neuroxide::ops::add::AddOp;
-use neuroxide::ops::ln::LnOp;
-use neuroxide::ops::mul::MulOp;
+use std::{sync::{Arc, RwLock}, time::{SystemTime, UNIX_EPOCH}};
+
+use neuroxide::{layers::linear::Linear, ops::matmul::MatMulOp, types::{device::Device, tensor::Tensor, tensordb::{DTypes, TensorDB}}};
 use neuroxide::ops::op_generic::Operation;
-use neuroxide::{
-    ops::matmul::MatMulOp,
-    types::{
-        device::Device,
-        tensor::Tensor,
-        tensordb::{DTypes, TensorDB},
-    },
-};
-use std::sync::{Arc, RwLock};
+use neuroxide::optimizers::simple_descent::SimpleDescent;
+use rand::Rng;
+
+#[macro_use]
+extern crate neuroxide;
+
+// TODO: Fix benchmarks
+// TODO: Replace NDArray (Maybe)
+// TODO: Create Union Graph for operations on CUDA
+// TODO: Enable caching/saving
+// TODO: Add more operations
 
 fn main() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
-    let a = Tensor::<f32>::new(
-        &db,
-        vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
-        vec![1, 2, 3],
-        Device::CUDA,
-        true,
-    );
-    println!("Tensor a: {}", a);
-    let b = Tensor::<f32>::new(
-        &db,
-        vec![
-            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
-            17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0, 31.0,
-            32.0, 33.0, 34.0, 35.0, 36.0,
-        ],
-        vec![6, 3, 2],
-        Device::CUDA,
-        true,
-    );
+    let pow_const = Tensor::<f32>::new(&db, vec![2.0; 16], vec![1,16], Device::CUDA, false);
+    let mut linear1 = Linear::new(&db, 16, 16, true);
+    let mut linear2 = Linear::new(&db, 16, 16, true);
+    let mut optim = SimpleDescent::new(&db, 0.0000001);
+    optim.add_parameters(&linear1.parameters());
+    optim.add_parameters(&linear2.parameters());
+    let start = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    for iteration in 0..1500 {
+        let num: f32 = rand::rng().random_range(0..100) as f32; 
+        let input = Tensor::<f32>::new(&db, vec![num; 16], vec![1, 16], Device::CUDA, false);
+        let output = Tensor::<f32>::new(&db, vec![num * 2.0; 16], vec![1, 16], Device::CUDA, false);
 
-    let mut c = MatMulOp::forward(&vec![&a, &b]);
+
+        let mut c = linear1.forward(&input);
+        c = linear2.forward(&c);
+
+        let loss = pow!(c - output, pow_const);
+        let grad = loss.backward(None);
+
+        optim.step(&grad);
+
+    } 
+
+    let input = Tensor::<f32>::new(&db, vec![4.0; 16], vec![16], Device::CUDA, false);
+
+    let c = linear1.forward(&input);
+    let mut c = linear2.forward(&c);
     c.cpu();
-    let answer = vec![
-        22.0, 28.0, 49.0, 64.0, 58.0, 64.0, 139.0, 154.0, 94.0, 100.0, 229.0, 244.0, 130.0, 136.0,
-        319.0, 334.0, 166.0, 172.0, 409.0, 424.0, 202.0, 208.0, 499.0, 514.0,
-    ];
-    assert_eq!(c.data, answer);
-    assert_eq!(c.shape, vec![6, 2, 2]);
+    println!("{}", c);
+
+
+    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    println!("Time taken: {:?} seconds", end-start);
 }
+

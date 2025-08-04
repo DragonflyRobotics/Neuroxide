@@ -34,11 +34,11 @@ where
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
 
-        println!("Shape 1: {:?}", shape1);
-        println!("Shape 2: {:?}", shape2);
+        // println!("Shape 1: {:?}", shape1);
+        // println!("Shape 2: {:?}", shape2);
         let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
 
-        println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
+        // println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
         cfg_if! {
