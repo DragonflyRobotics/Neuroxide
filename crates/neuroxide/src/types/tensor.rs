@@ -12,11 +12,11 @@ use super::{tensordb::{assert_types, TensorDB}, t::TensorElement};
 
 #[cfg(feature = "cuda")]
 unsafe extern "C" {
-    fn toCuda(size: i32, data: *mut f32) -> *mut f32;
-    fn checkkData(len: i32, ptr: *mut f32) -> i32;
-    fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
-    fn destroyPool();
-    fn createPoolMax();
+fn toCuda(size: i32, data: *mut f32) -> *mut f32;
+fn checkkData(len: i32, ptr: *mut f32) -> i32;
+fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
+fn destroyPool();
+fn createPoolMax();
 }
 
 #[derive(Clone)]
@@ -89,7 +89,7 @@ where
             self.device = Device::CPU;
         }
     }
-    
+
     pub fn cuda(&mut self) {
         #[cfg(feature = "cuda")]
         unsafe {
@@ -170,7 +170,7 @@ where
                     for node in self.op_chain.nodes() {
                         let outgoing_edges = self.op_chain.edges_directed(node, Outgoing);
                         if outgoing_edges.count() == 0 && db.get(node).unwrap().requires_grad {
-                            // println!("node: {:?}", node);
+                            println!("{}", db.get(node).unwrap());
                             all_leaves.push(node);
                         }
                     }
@@ -206,6 +206,7 @@ where
         }
 
         for leaf in all_leaves.clone() {
+            // println!("Leaf: {}", grad[&leaf]);
             let path = &paths[&leaf];
             let mut arr: Vec<Tensor<T>> = Vec::new();
             for p in path {
@@ -226,24 +227,46 @@ where
                         // let inputs = vec![db.get(neighbor[0]).unwrap(), db.get(neighbor[1]).unwrap()];
                         let op_type = db.get(p[i]).unwrap().op.clone();
                         let input_shapes = inputs.iter().map(|x| x.shape.len()).collect::<Vec<_>>();
-                        let output = self.match_ops(db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap(), &inputs);
+                        // println!("derivative of {} w.r.t {}",db.get(p[i]).unwrap(), db.get(p[i+1]).unwrap());
+                        let d = db.get(p[i]).unwrap();
+                        let dx = db.get(p[i + 1]).unwrap();
+                        println!("d: {}", d);
+                        println!("dx: {}", dx);
+                        let d_shape = d.shape.clone();
+                        let dx_shape = dx.shape.clone();
+                        let output = self.match_ops(d, dx, &inputs);
                         // output.cpu();
                         // println!("output: {}", output);
                         let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();
                         drop(db);
                         if let Ops::MatMulEnum = op_type {
-                           // output is b_t and temp is downstream so follow upstream dot b_t
-                           if input_shapes[0] > 1 || input_shapes[1] > 1 {
-                               // println!("temp: {}", temp);
-                               // println!("output: {}", output);
-                               if grad_index == 0 {
-                                   temp = MatMulOp::forward(&vec![&temp, &output]);
-                               } else {
-                                   temp = MatMulOp::forward(&vec![&output, &temp]);
-                               }
-                           } else {
-                               temp = MulOp::forward(&vec![&output, &temp]);
-                           }
+                            // output is b_t and temp is downstream so follow upstream dot b_t
+                            println!("{}", temp);
+                            println!("output: {}", output);
+                            if input_shapes[0] > 1 || input_shapes[1] > 1 {
+                                if grad_index == 0 {
+                                    temp = MatMulOp::forward(&vec![&temp, &output]);
+                                } else {
+                                    temp = MatMulOp::forward(&vec![&output, &temp]);
+                                }
+                                println!("temp: {}", temp);
+                                let mut got = ArrayD::from_shape_vec(IxDyn(&temp.shape), temp.data.clone()).unwrap();
+                                let mut corrected_shape = got.shape().to_vec();
+                                let mut reduce_ctn = 0;
+                                if d_shape.len() > 2 || dx_shape.len() > 2 {
+                                    for (a, b) in d_shape[0..d_shape.len() - 2].iter().zip(dx_shape[0..dx_shape.len() - 2].iter()) {
+                                        reduce_ctn += (a != b) as i32;
+                                    }
+                                }
+                                for i in 0..reduce_ctn {
+                                    got = got.sum_axis(ndarray::Axis(0));
+                                    corrected_shape[i as usize] = 1;
+                                }
+                                temp.data = got.iter().map(|x| *x).collect();
+                                temp.shape = corrected_shape;
+                            } else {
+                                temp = MulOp::forward(&vec![&output, &temp]);
+                            }
                         } else {
                             // println!("temp: {}", temp);
                             // println!("output: {}", output);
@@ -275,7 +298,7 @@ where
         self.op_chain.add_node(self.id);
         self.op_head = self.id;
     }
-    
+
     pub fn t(&self) -> Tensor<T> { // TODO: Should I change OpChain?
         let b_arr = ArrayD::from_shape_vec(IxDyn(&self.shape), self.data.clone()).unwrap();
         let b_shape = b_arr.shape();

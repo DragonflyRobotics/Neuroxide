@@ -31,9 +31,11 @@ where
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
 
+        println!("Shape 1: {:?}", shape1);
+        println!("Shape 2: {:?}", shape2);
         let shape = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
 
-        // println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
+        println!("Gonna Multiply {:?} X {:?}", shape1, shape2);
 
         let result: Vec<T>; // = vec![T::default(); len as usize];
         cfg_if! {
@@ -196,7 +198,7 @@ where
         result_graph.add_node(result_id);
         result_graph.add_edge(result_id, inputs[0].op_head, make_node_uid());
         result_graph.add_edge(result_id, inputs[1].op_head, make_node_uid());
-
+        
         let t = Tensor {
             id: result_id,
             data: result,
@@ -226,9 +228,9 @@ where
         // println!("{}", grad.unwrap());
         // println!("Shape 1 {:?}", inputs[0].shape);
         // println!("Shape 2 {:?}",inputs[1].shape);
-
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
+
         
 
         let grad_index = inputs.iter().position(|&x| x.id == grad.unwrap().id).unwrap();
@@ -255,11 +257,11 @@ where
             b_t_shape = b_t.shape().to_vec();
         } else if b_shape.len() > 2 {
             // Permute the axes to get the last two dimensions as the matrix dimensions
-            println!("Permuting axes for shape: {:?}", b_shape);
+            // println!("Permuting axes for shape: {:?}", b_shape);
             let mut permuted_axes: Vec<usize> = (0..b_shape.len()).collect();
             permuted_axes.swap(b_shape.len() - 2, b_shape.len() - 1); // Swap the last two axes
             b_t = b_arr.permuted_axes(IxDyn(&permuted_axes));
-            println!("Permuted shape: {:?}", b_t.shape());
+            // println!("Permuted shape: {:?}", b_t.shape());
             // b_t = b_arr.permuted_axes(IxDyn(&[0, 2, 1])).to_owned();
             b_t_shape = b_t.shape().to_vec();
         } else {
