@@ -51,6 +51,7 @@ where
             #[cfg(feature = "cuda")]
             {
                 let mut a: Vec<f32> = data.iter().map(|&x| <f32 as num::NumCast>::from(x).unwrap()).collect();
+                println!("Moving {} elements to CUDA", a.len());
                 cuda_ptr = Some(unsafe { toCuda(a.len() as i32, a.as_mut_ptr() as *mut f32) });
             }
         }
@@ -253,7 +254,7 @@ where
                                 let mut got = ArrayD::from_shape_vec(IxDyn(&temp.shape), temp.data.clone()).unwrap();
                                 let mut corrected_shape = got.shape().to_vec();
                                 let mut reduce_ctn = 0;
-                                if d_shape.len() > 2 || dx_shape.len() > 2 {
+                                if d_shape.len() > 2 && dx_shape.len() > 2 {
                                     for (a, b) in d_shape[0..d_shape.len() - 2].iter().zip(dx_shape[0..dx_shape.len() - 2].iter()) {
                                         reduce_ctn += (a != b) as i32;
                                     }

@@ -32,6 +32,14 @@ extern crate cc;
                 if extension == "cu" {
                     let mut build = cc::Build::new();
                     build.compiler("clang++"); // Use clang++ for CUDA compilation
+                    // build.flag("--cuda-gpu-arch=sm_120");
+                    // build.flag("--cuda-gpu-arch=sm_100");
+                    // build.flag("--cuda-gpu-arch=sm_90");
+                    build.flag("--cuda-gpu-arch=sm_89");
+                    // build.flag("--cuda-gpu-arch=sm_87");
+                    // build.flag("--cuda-gpu-arch=sm_86");
+                    // build.flag("--cuda-gpu-arch=sm_80");
+                    // build.flag("--cuda-gpu-arch=sm_75");
                     build.flag("-O3"); // or any standard you want
 
                     print!("Compiling CUDA file: {}", entry.path().display());
