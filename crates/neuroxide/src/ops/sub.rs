@@ -37,7 +37,7 @@ where
         t
     }
 
-    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>, device: Device) -> Tensor<T> {
         assert!(inputs.len() == 2);
 
         let mut grad_data = vec![T::default(); inputs[0].data.len()];
@@ -63,7 +63,7 @@ where
             for i in 0..inputs[0].data.len() {
                 grad_data[i] = if dx_index == 0 {T::from(1).unwrap()} else {T::from(-1).unwrap()}; 
             }
-            Tensor {
+            let mut t = Tensor {
                 id: inputs[0].id,
                 data: grad_data,
                 shape: inputs[0].shape.clone(),
@@ -74,7 +74,11 @@ where
                 op_head: inputs[0].op_head,
                 dtype: inputs[0].dtype.clone(),
                 cuda_ptr: None // TODO: Fix this
+            };
+            if device == Device::CUDA {
+                t.cuda();
             }
+            return t;
         }
     }
 }

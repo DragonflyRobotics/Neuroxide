@@ -204,7 +204,7 @@ fn backward() {
     let c = MatMulOp::forward(&vec![&x, &x2]);
     let answer = vec![11, 15, 19, 11, 15, 19];
     let answer2 = vec![5, 5, 7, 7, 9, 9];
-    let grad = c.backward(Some(vec![x.id, x2.id]));
+    let grad = c.backward(Some(vec![x.id, x2.id]), Device::CPU);
     assert_eq!(grad.get(&x.id).unwrap().data, answer);
     assert_eq!(grad.get(&x.id).unwrap().shape, vec![1, 2, 3]);
     assert_eq!(grad.get(&x2.id).unwrap().data, answer2);
@@ -216,7 +216,7 @@ fn backward() {
     let c = MatMulOp::forward(&vec![&x, &x2]);
     let answer = vec![11, 15, 19, 11, 15, 19];
     let answer2 = vec![5, 5, 7, 7, 9, 9];
-    let grad = c.backward(Some(vec![x.id, x2.id]));
+    let grad = c.backward(Some(vec![x.id, x2.id]), Device::CPU);
     assert_eq!(grad.get(&x.id).unwrap().data, answer);
     assert_eq!(grad.get(&x.id).unwrap().shape, vec![2, 3]);
     assert_eq!(grad.get(&x2.id).unwrap().data, answer2);
@@ -226,7 +226,7 @@ fn backward() {
     let x2 = Tensor::new(&db, vec![5, 6, 7, 8, 9, 10], vec![6], Device::CPU, true);
 
     let c = MatMulOp::forward(&vec![&x, &x2]);
-    let grad = c.backward(None);
+    let grad = c.backward(None, Device::CPU);
     assert_eq!(grad.get(&x.id).unwrap().data, x2.data);
     assert_eq!(grad.get(&x.id).unwrap().shape, vec![6]);
     assert_eq!(grad.get(&x2.id).unwrap().data, x.data);
@@ -242,7 +242,7 @@ fn backward() {
     let x2 = Tensor::new(&db, vec![5, 6, 7], vec![3], Device::CPU, true);
 
     let c = MatMulOp::forward(&vec![&x, &x2]);
-    let grad = c.backward(None);
+    let grad = c.backward(None, Device::CPU);
     let actual_grad = vec![5, 6, 7, 5, 6, 7];
     assert_eq!(grad.get(&x.id).unwrap().shape, vec![1, 2, 3]);
     assert_eq!(grad.get(&x.id).unwrap().data, actual_grad);
@@ -268,7 +268,7 @@ fn backward() {
     );
 
     let c = MatMulOp::forward(&vec![&a, &b]);
-    let grad = c.backward(None);
+    let grad = c.backward(None, Device::CPU);
     let actual_grad_a = vec![198, 222, 246, 198, 222, 246];
     assert_eq!(grad.get(&a.id).unwrap().data, actual_grad_a);
     assert_eq!(grad.get(&a.id).unwrap().shape, vec![1, 2, 3]);

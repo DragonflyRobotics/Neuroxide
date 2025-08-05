@@ -1,37 +1,17 @@
 import torch
 
-# Flat data like in your Rust vectors
-a_data = [
-    1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
-    # 1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
-    # 7.0, 8.0, 9.0, 10.0, 11.0, 12.0
-]
-b_data = [
-    1.0, 2.0, 3.0, 4.0, 5.0, 6.0,
-    7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
-    13.0, 14.0, 15.0, 16.0, 17.0, 18.0,
-    19.0, 20.0, 21.0, 22.0, 23.0, 24.0,
-    25.0, 26.0, 27.0, 28.0, 29.0, 30.0,
-    31.0, 32.0, 33.0, 34.0, 35.0, 36.0
-]
+A = torch.tensor([
+    [1, 2, 3],
+    [4, 5, 6],
+], device='cuda:0')  # shape [2, 3, 2] (B, H, W)
+print(A.shape)
+print(A.stride())
+print(A.view(-1))  # A.flatten()
+# tensor([1., 2., 3., 4., 5., 6., 1., 2., 3., 4., 5., 6.], device='cuda:0')
 
-# Create flat tensors
-a = torch.tensor(a_data, dtype=torch.float32, requires_grad=True)
-b = torch.tensor(b_data, dtype=torch.float32)
+B = A.t().contiguous()  # [B, W, H]
+print(B.shape)
+print(B.stride())
+print(B.view(-1))
+# tensor([1., 4., 2., 5., 3., 6., 1., 4., 2., 5., 3., 6.], device='cuda:0')
 
-# Reshape according to your Rust tensor shapes
-# a shape: [2, 1, 2, 3]
-a = a.view(1, 2, 3)
-
-# b shape: [2, 3, 2, 2]
-b = b.view(6, 3, 2)
-
-a = torch.tensor(a.detach().numpy(), dtype=torch.float32, requires_grad=True)
-b = torch.tensor(b.detach().numpy(), dtype=torch.float32, requires_grad=True)
-
-result = torch.matmul(a, b)
-print(result.shape)
-# get grad of a w.r.t result 
-result.backward(torch.ones_like(result))
-print(a.grad)  # should print the gradient of a
-print(b.grad)  # should print the gradient of a

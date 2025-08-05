@@ -64,7 +64,7 @@ fn backward() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F64)));
     let x = Tensor::<f64>::new(&db, vec![0.0, 3.14/6.0, 3.14/4.0, 3.14/3.0, 3.14], vec![5], Device::CPU, true);
     let result = SinOp::forward(&vec![&x]);
-    let grad = result.backward(None);
+    let grad = result.backward(None, Device::CPU);
 
     for i in 0..result.data.len() {
         assert!(relative_eq!(grad.get(&x.id).unwrap().data[i], x.data[i].cos(), epsilon = f64::EPSILON));
@@ -74,7 +74,7 @@ fn backward() {
     let db = Arc::new(RwLock::new(TensorDB::new(DTypes::F32)));
     let x = Tensor::<f32>::new(&db, vec![0.0, 3.14/6.0, 3.14/4.0, 3.14/3.0, 3.14], vec![5], Device::CPU, true);
     let result = SinOp::forward(&vec![&x]);
-    let grad = result.backward(None);
+    let grad = result.backward(None, Device::CPU);
 
     for i in 0..result.data.len() {
         assert!(relative_eq!(grad.get(&x.id).unwrap().data[i], x.data[i].cos(), epsilon = f32::EPSILON));

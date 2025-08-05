@@ -1,39 +1,9 @@
-/*  
- * Copyright (c) 2019, NVIDIA CORPORATION.  All rights reserved.
- * 
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *  - Neither the name(s) of the copyright holder(s) nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */  
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 
-#include <algorithm>
 #include <iostream>
-#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -72,13 +42,12 @@ int main()
      * C_{c,w,h,n} = alpha * A_{w,h,c,n}
      **********************/
 
-    std::vector<int> modeA{'b','w','h'};
-    std::vector<int> modeC{'b','h','w'};
+    std::vector<int> modeA{'w','h'};
+    std::vector<int> modeC{'h','w'};
     int nmodeA = modeA.size();
     int nmodeC = modeC.size();
 
     std::unordered_map<int, int64_t> extent;
-    extent['b'] = 2;
     extent['w'] = 2;
     extent['h'] = 3;
 
@@ -122,8 +91,8 @@ int main()
         return -1;
     }
 
-    std::vector<int64_t> strideA = {extentA[1]*extentA[2], extentA[2], 1};  // B, H, W
-    std::vector<int64_t> strideC = {extentC[1]*extentC[2], extentC[2], 1};  // B, H, W
+    std::vector<int64_t> strideA = {extentA[1], 1};  // B, H, W
+    std::vector<int64_t> strideC = {extentC[1], 1};  // B, H, W
 
     /*******************
      * Initialize data
@@ -223,7 +192,7 @@ int main()
     HANDLE_ERROR(cutensorPermute(handle,
                                  plan,
                                  &alpha, A_d, C_d, nullptr /* stream */));
-    // copy data back and print 
+    // copy data back and print
     HANDLE_CUDA_ERROR(cudaMemcpy2DAsync(C, sizeC, C_d, sizeC, sizeC, 1, cudaMemcpyDefault, nullptr));
     HANDLE_CUDA_ERROR(cudaStreamSynchronize(nullptr));
     printf("C:\n");

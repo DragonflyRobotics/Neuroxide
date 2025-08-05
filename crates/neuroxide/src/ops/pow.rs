@@ -124,7 +124,7 @@ where
 
     }
 
-    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>, device: Device) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("Pow got {} ^ {} ", inputs[0], inputs[1]);
         
@@ -152,7 +152,7 @@ where
             }
         }
         // println!("GRAD DATA {:?}", grad_data);
-        Tensor {
+        let mut t = Tensor {
             id: inputs[0].id,
             data: grad_data,
             shape: final_shape,
@@ -163,6 +163,10 @@ where
             op_head: inputs[0].op_head,
             dtype: inputs[0].dtype.clone(),
             cuda_ptr: None // TODO: Fix this
+        };
+        if device == Device::CUDA {
+            t.cuda();
         }
+        return t;
     }
 }

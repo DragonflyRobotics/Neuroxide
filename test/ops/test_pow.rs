@@ -64,7 +64,7 @@ fn backward() {
     let c1c = Tensor::new(&db, vec![15.0], vec![1], Device::CPU, true);
 
     let result = PowOp::forward(&vec![&x, &c1c]);
-    let grad = result.backward(None);
+    let grad = result.backward(None, Device::CPU);
     let grad_x = &grad[&x.id].data;
     let grad_c1c = &grad[&c1c.id].data;
     assert_eq!(grad_x[0], 15.0_f64 * 5.0_f64.powf(15.0_f64 - 1.0));

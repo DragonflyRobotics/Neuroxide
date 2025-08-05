@@ -18,6 +18,7 @@ extern crate cc;
     // Link against the cudart library
     println!("cargo:rustc-link-lib=cudart");
     println!("cargo:rustc-link-lib=cublas");
+    println!("cargo:rustc-link-lib=cutensor");
 
     println!("cargo:rustc-link-lib=dylib=stdc++");
 

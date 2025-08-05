@@ -35,7 +35,7 @@ where
         t
     }
 
-    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>, _: Device) -> Tensor<T> {
         assert!(inputs.len() == 2);
 
         //get index of grad in inputs without for loop

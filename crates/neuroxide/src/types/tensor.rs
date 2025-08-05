@@ -115,45 +115,47 @@ where
         Tensor::new(db, data, shape, device, requires_grad)
     }
 
-    fn match_ops(&self, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>) -> Tensor<T> {
+   fn match_ops(&self, d: &Tensor<T>, dx: &Tensor<T>, inputs: &Vec<&Tensor<T>>, device: Device) -> Tensor<T> { 
         match d.op {
             Ops::AddEnum => {
-                AddOp::backward(inputs, Some(dx))
+                AddOp::backward(inputs, Some(dx), device)
             },
             Ops::SubEnum => {
-                SubOp::backward(inputs, Some(dx))
+                SubOp::backward(inputs, Some(dx), device)
             },
             Ops::MulEnum => {
-                MulOp::backward(inputs, Some(dx))
+                MulOp::backward(inputs, Some(dx), device)
             },
             Ops::SinEnum => {
-                SinOp::backward(inputs, Some(dx))
+                SinOp::backward(inputs, Some(dx), device)
             },
             Ops::CosEnum => {
-                CosOp::backward(inputs, Some(dx))
+                CosOp::backward(inputs, Some(dx), device)
             },
             Ops::PowEnum => {
-                PowOp::backward(inputs, Some(dx))
+                PowOp::backward(inputs, Some(dx), device)
             },
             Ops::LnEnum => {
-                LnOp::backward(inputs, Some(dx))
+                LnOp::backward(inputs, Some(dx), device)
             },
             Ops::DivEnum => {
-                DivOp::backward(inputs, Some(dx))
+                DivOp::backward(inputs, Some(dx), device)
             },
             Ops::MatMulEnum => {
-                MatMulOp::backward(inputs, Some(dx))
+                MatMulOp::backward(inputs, Some(dx), device)
             },
             _ => panic!("Operation not implemented")
         }
     }
 
-    pub fn backward(&self, dx: Option<Vec<i32>>) -> HashMap<i32, Tensor<T>> {
-        let mut db_mut = self.dtype.write().unwrap();
-        for node in db_mut.get_all_mut() {
-            node.cpu();
+    pub fn backward(&self, dx: Option<Vec<i32>>, device: Device) -> HashMap<i32, Tensor<T>> {
+        if device == Device::CPU {
+            let mut db_mut = self.dtype.write().unwrap();
+            for node in db_mut.get_all_mut() {
+                node.cpu();
+            }
+            drop(db_mut);
         }
-        drop(db_mut);
 
 
         let mut all_leaves = Vec::new();
@@ -189,7 +191,7 @@ where
             let data = vec![T::from(1).unwrap(); self.data.len()];
             let mut new_graph = GraphMap::<i32, i32, Directed>::new();
             new_graph.add_node(self.id);
-            let new_tensor = Tensor {
+            let mut new_tensor = Tensor {
                 id: self.id,
                 data,
                 shape: self.shape.clone(),
@@ -201,6 +203,9 @@ where
                 dtype: self.dtype.clone(),
                 cuda_ptr: None
             };
+            if device == Device::CUDA {
+                new_tensor.cuda();
+            }
             grad.insert(leaf, new_tensor);
         }
 
@@ -233,7 +238,7 @@ where
                         // println!("dx: {}", dx);
                         let d_shape = d.shape.clone();
                         let dx_shape = dx.shape.clone();
-                        let output = self.match_ops(d, dx, &inputs);
+                        let output = self.match_ops(d, dx, &inputs, device);
                         // output.cpu();
                         // println!("output: {}", output);
                         let grad_index = inputs.iter().position(|&x| x.id == db.get(p[i+1]).unwrap().id).unwrap();
@@ -284,8 +289,9 @@ where
             for i in 1..arr.len() {
                 sum = AddOp::forward(&vec![&sum, &arr[i].clone()]);
             }
-            grad.get_mut(&leaf).unwrap().data = sum.data;
-            grad.get_mut(&leaf).unwrap().shape = sum.shape;
+            // grad.get_mut(&leaf).unwrap().data = sum.data;
+            // grad.get_mut(&leaf).unwrap().shape = sum.shape;
+            *grad.get_mut(&leaf).unwrap() = sum.clone();
         }
 
 

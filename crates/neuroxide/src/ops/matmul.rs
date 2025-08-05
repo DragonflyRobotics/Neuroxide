@@ -223,15 +223,15 @@ where
         t
     }
 
-    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>) -> Tensor<T> {
+    fn backward(inputs: &Vec<&Tensor<T>>, grad: Option<&Tensor<T>>, device: Device) -> Tensor<T> {
         assert!(inputs.len() == 2);
         // println!("INPUTS");
         // println!("{}", inputs[0]);
         // println!("{}", inputs[1]);
         // println!("W.R.T");
         // println!("{}", grad.unwrap());
-        // println!("Shape 1 {:?}", inputs[0].shape);
-        // println!("Shape 2 {:?}",inputs[1].shape);
+        println!("Shape 1 {:?}", inputs[0].shape);
+        println!("Shape 2 {:?}",inputs[1].shape);
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
 
@@ -240,6 +240,7 @@ where
         let grad_index = inputs.iter().position(|&x| x.id == grad.unwrap().id).unwrap();
         let mut b_arr = ArrayD::<T>::from_shape_vec(IxDyn(&inputs[1-grad_index].shape), inputs[1-grad_index].data.clone()).unwrap();
         let _ = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
+        println!("Broadcasted Shapes: {:?} {:?}", shape1, shape2);
         let mul_shapes = [shape1, shape2];
         let b_arr_option = b_arr.broadcast(mul_shapes[1-grad_index].clone());
         if b_arr_option.is_none() {
