@@ -120,20 +120,20 @@ void b_matmul(const int D, const int M, const int N, const int K, const int a_br
     std::vector<const float*> h_A_array(D);
     checkCUDASuccess(cudaMemcpy(h_A_array.data(), d_A_array, D * sizeof(float*), cudaMemcpyDeviceToHost));
 
-    std::cout << "=== Printing A batch matrices ===\n";
-    for (int d = 0; d < D; ++d) {
-        std::vector<float> h_A_matrix(M * K);  // single matrix A_i
-        checkCUDASuccess(cudaMemcpy(h_A_matrix.data(), h_A_array[d], M * K * sizeof(float), cudaMemcpyDeviceToHost));
-
-        std::cout << "Batch " << d << " A matrix:\n";
-        for (int i = 0; i < M; ++i) {
-            for (int j = 0; j < K; ++j) {
-                std::cout << h_A_matrix[i * K + j] << " ";
-            }
-            std::cout << "\n";
-        }
-        std::cout << std::endl;
-    }
+    // std::cout << "=== Printing A batch matrices ===\n";
+    // for (int d = 0; d < D; ++d) {
+    //     std::vector<float> h_A_matrix(M * K);  // single matrix A_i
+    //     checkCUDASuccess(cudaMemcpy(h_A_matrix.data(), h_A_array[d], M * K * sizeof(float), cudaMemcpyDeviceToHost));
+    //
+    //     std::cout << "Batch " << d << " A matrix:\n";
+    //     for (int i = 0; i < M; ++i) {
+    //         for (int j = 0; j < K; ++j) {
+    //             std::cout << h_A_matrix[i * K + j] << " ";
+    //         }
+    //         std::cout << "\n";
+    //     }
+    //     std::cout << std::endl;
+    // }
     std::cout << "=== Printing B batch matrices ===\n";
     std::vector<const float*> h_B_array(D);
     checkCUDASuccess(cudaMemcpy(h_B_array.data(), d_B_array, D * sizeof(float*), cudaMemcpyDeviceToHost));

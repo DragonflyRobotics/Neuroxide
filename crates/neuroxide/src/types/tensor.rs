@@ -245,8 +245,8 @@ where
                         drop(db);
                         if let Ops::MatMulEnum = op_type {
                             // output is b_t and temp is downstream so follow upstream dot b_t
-                            // println!("{}", temp);
-                            // println!("output: {}", output);
+                            println!("{} {:?}", temp, temp.device);
+                            println!("output: {} {:?}", output, output.device);
                             if input_shapes[0] > 1 || input_shapes[1] > 1 {
                                 if grad_index == 0 {
                                     temp = MatMulOp::forward(&vec![&temp, &output]);

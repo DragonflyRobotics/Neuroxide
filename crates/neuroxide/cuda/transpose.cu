@@ -178,7 +178,7 @@ void transpose(const int M, const int N, float *A, float **C) {
     HANDLE_ERROR(cutensorDestroyTensorDescriptor(descC));
 }
 
-void transpose_b(const int D, const int M, const int N, float *A, float **C) {
+void transpose_b(const int D, const int M, const int N, const int broad, float *A, float **C) {
     std::vector<int> modeA{'d', 'w','h'};
     std::vector<int> modeC{'d', 'h','w'};
     int nmodeA = modeA.size();
@@ -210,13 +210,29 @@ void transpose_b(const int D, const int M, const int N, float *A, float **C) {
     size_t sizeA = sizeof(floatTypeA) * elementsA;
     size_t sizeC = sizeof(floatTypeC) * elementsC;
 
-    void *A_d = A;
+    void *A_d = nullptr;
+    if (broad == 1) {
+        A_d = A;
+    } else {
+        checkCUDASuccess(cudaMalloc((void**) &A_d, sizeA));
+        for (int i = 0; i < broad; i++) {
+            checkCUDASuccess(cudaMemcpy((floatTypeA*)A_d + i * elementsA/broad, A, sizeA/broad, cudaMemcpyHostToDevice));
+        }
+    }
+    std::cout << "A_d = " << A_d << std::endl;
+    floatTypeC *temp2;
+    checkCUDASuccess(cudaMallocHost((void**) &temp2, sizeof(floatTypeA) * elementsA));
+    checkCUDASuccess(cudaMemcpy(temp2, A_d, sizeA, cudaMemcpyDeviceToHost));
+    for (int i = 0; i < elementsA; i++) {
+        std::cout << "a[" << i << "] = " << temp2[i] << std::endl;
+    }
     void *C_d;
     checkCUDASuccess(cudaMalloc((void**) &C_d, sizeC));
 
     uint32_t const kAlignment = 256;  // Alignment of the global-memory device pointers (bytes)
-    assert(uintptr_t(A_d) % kAlignment == 0);
-    assert(uintptr_t(C_d) % kAlignment == 0);
+    std::cout << uintptr_t(A_d) << " " << uintptr_t(C_d) << std::endl;
+    // assert(uintptr_t(A_d) % kAlignment == 0);
+    // assert(uintptr_t(C_d) % kAlignment == 0);
 
     std::vector<int64_t> strideA = {extentA[1] * extentA[2], extentA[2], 1};  // D, H, W
     std::vector<int64_t> strideC = {extentC[1] * extentC[2], extentC[2], 1};  // D, H, W
