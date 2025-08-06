@@ -386,6 +386,14 @@ where
                     b_t = ArrayD::<T>::zeros(IxDyn(&b_t_shape));
                 }
             } else if b_shape.len() > 2 {
+                // let mut a = inputs[0].clone();
+                // let mut b = inputs[1].clone();
+                // a.cpu();
+                // b.cpu();
+                // println!("a: {}", a);
+                // println!("b: {}", b);
+                // println!("grad {}", grad.unwrap());
+                // panic!();
                 let d: i32 = b_shape[0..b_shape.len() - 2]
                     .to_vec()
                     .iter()
@@ -417,7 +425,7 @@ where
             }
         }
 
-        Tensor {
+        let mut t = Tensor {
             id: inputs[1 - grad_index].id,
             data: b_t.iter().map(|&x| x).collect(),
             shape: b_t_shape,
@@ -428,6 +436,10 @@ where
             op_head: inputs[1 - grad_index].op_head,
             dtype: inputs[1 - grad_index].dtype.clone(),
             cuda_ptr: cuda_ptr, // TODO: Fix this
-        }
+        };
+        // t.cpu();
+        // println!("{t}");
+        // panic!();
+        t
     }
 }

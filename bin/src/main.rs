@@ -11,8 +11,9 @@ use rand::Rng;
 unsafe extern "C" {
 pub fn transpose(m: i32, n: i32, a: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 pub fn transpose_b(d: i32, m: i32, n: i32, broad: i32, a: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
-fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
-fn toCuda(size: i32, data: *mut f32) -> *mut f32;
+pub fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
+pub fn toCuda(size: i32, data: *mut f32) -> *mut f32;
+pub fn reduce(d: i32, m: i32, n: i32, a: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 }
 
 pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
@@ -93,7 +94,7 @@ fn main() {
     // println!("x_grad: {}", x_grad.data[0]);
     // println!("Time taken: {:?} seconds", end - start);
     //
-    // let d: i32 = 6;
+    // let d: i32 = 2;
     // let m: i32 = 2;
     // let n: i32 = 3;
     // let mut a: Vec<f32> = vec![
@@ -103,23 +104,24 @@ fn main() {
     //     4.0,
     //     5.0,
     //     6.0,
-    //     // 1.0,
-    //     // 2.0,
-    //     // 3.0,
-    //     // 4.0,
-    //     // 5.0,
-    //     // 6.0,
+    //     1.0,
+    //     2.0,
+    //     3.0,
+    //     4.0,
+    //     5.0,
+    //     6.0,
     // ];
     // let mut data: f32 = 0.0;
     // let mut ptr_to_data: *mut f32 = &mut data;
-    // let mut r = vec![0.0; d as usize * m as usize * n as usize];
+    // let mut r = vec![0.0; m as usize * n as usize];
     // #[cfg(feature = "cuda")]
     // unsafe {
     //     let cuda_ptr = toCuda(a.len() as i32, a.as_mut_ptr() as *mut f32);
-    //     transpose_b(d as i32, m as i32, n as i32, d, cuda_ptr, &mut ptr_to_data);
-    //     let ptr = toCpu(d*m*n, ptr_to_data);
-    //
-    //     std::ptr::copy_nonoverlapping(ptr, r.as_mut_ptr(), d as usize * m as usize * n as usize);
+    //     reduce(d, m, n, cuda_ptr, &mut ptr_to_data);
+    //     // transpose_b(d as i32, m as i32, n as i32, d, cuda_ptr, &mut ptr_to_data);
+    //     let ptr = toCpu(m*n, ptr_to_data);
+    //     //
+    //     std::ptr::copy_nonoverlapping(ptr, r.as_mut_ptr(), m as usize * n as usize);
     //     println!("{:?}", r);
     // }
     let a = Tensor::<f32>::new(
@@ -143,6 +145,7 @@ fn main() {
     let c = MatMulOp::forward(&vec![&a, &b]);
     let grad = c.backward(None, Device::CUDA);
     let mut c_grad = grad.get(&a.id).unwrap().clone();
+    c_grad.cpu();
     println!("c: {}", c_grad);
 
     let actual_grad_a = vec![198, 222, 246, 198, 222, 246];

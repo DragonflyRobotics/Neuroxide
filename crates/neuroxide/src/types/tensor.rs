@@ -1,7 +1,8 @@
-use std::{collections::HashMap, sync::{Arc, RwLock}};
+use std::{cmp::max, collections::HashMap, sync::{Arc, RwLock}, vec};
 
 use crate::{ops::{add::AddOp, cos::CosOp, div::DivOp, ln::LnOp, matmul::MatMulOp, mul::MulOp, op_generic::{Operation, Ops}, pow::PowOp, sin::SinOp, sub::SubOp}, types::{device::Device, tensordb::DTypes}, utils::types::print_type_of};
 use ndarray::{ArrayD, IxDyn};
+use num::abs;
 use petgraph::{algo, prelude::GraphMap, Directed, Direction::Outgoing};
 use crate::utils::node_uid::make_node_uid;
 use rand::Rng;
@@ -17,7 +18,9 @@ fn checkkData(len: i32, ptr: *mut f32) -> i32;
 fn toCpu(size: i32, ptr: *mut f32) -> *mut f32;
 fn destroyPool();
 fn createPoolMax();
+pub fn reduce(d: i32, m: i32, n: i32, a: *mut f32, c: *mut*mut f32) -> CudnnStatusT;
 }
+pub type CudnnStatusT = i32; // usually cuDNN uses enums as return statuses
 
 #[derive(Clone)]
 pub struct Tensor<T> {
@@ -254,20 +257,50 @@ where
                                     temp = MatMulOp::forward(&vec![&output, &temp]);
                                 }
                                 // println!("temp: {}", temp);
-                                let mut got = ArrayD::from_shape_vec(IxDyn(&temp.shape), temp.data.clone()).unwrap();
-                                let mut corrected_shape = got.shape().to_vec();
-                                let mut reduce_ctn = 0;
-                                if d_shape.len() > 2 && dx_shape.len() > 2 {
-                                    for (a, b) in d_shape[0..d_shape.len() - 2].iter().zip(dx_shape[0..dx_shape.len() - 2].iter()) {
-                                        reduce_ctn += (a != b) as i32;
+                                if device == Device::CPU {
+                                    let mut reduce_ctn = 0;
+                                    println!("d_shape: {:?}, dx_shape: {:?}", d_shape, dx_shape);
+                                    if d_shape.len() > 2 && dx_shape.len() > 2 {
+                                        for (a, b) in d_shape[0..d_shape.len() - 2].iter().zip(dx_shape[0..dx_shape.len() - 2].iter()) {
+                                            reduce_ctn += (a != b) as i32;
+                                        }
+                                    }
+                                    let mut got = ArrayD::from_shape_vec(IxDyn(&temp.shape), temp.data.clone()).unwrap();
+                                    let mut corrected_shape = got.shape().to_vec();
+                                    for i in 0..reduce_ctn {
+                                        println!("reducing axis: {}", i);
+                                        got = got.sum_axis(ndarray::Axis(0));
+                                        corrected_shape[i as usize] = 1;
+                                    }
+                                    temp.data = got.iter().map(|x| *x).collect();
+                                    temp.shape = corrected_shape;
+                                } else {
+                                    let mut reduce_ctn = 0;
+                                    println!("d_shape: {:?}, dx_shape: {:?}", d_shape, dx_shape);
+                                    let mut og_shape = temp.shape.clone();
+                                    let mut index = 0;
+                                    if d_shape.len() > 2 && dx_shape.len() > 2 {
+                                        for (a, b) in d_shape[0..d_shape.len() - 2].iter().zip(dx_shape[0..dx_shape.len() - 2].iter()) {
+                                            if a != b {
+                                                reduce_ctn += max(*a, *b) as i32;
+                                                og_shape[index] = 1;
+                                            }
+                                            index += 1;
+                                        }
+                                    }
+                                    if reduce_ctn > 0 {
+                                        unsafe {
+                                            let mut data: f32 = 0.0;
+                                            let mut ptr_to_data: *mut f32 = &mut data;
+                                            println!("reduce_ctn: {}", reduce_ctn);
+                                            println!("temp.shape: {:?}", temp.shape);
+                                            reduce(reduce_ctn, temp.shape[temp.shape.len()-2].try_into().unwrap(), temp.shape[temp.shape.len()-1].try_into().unwrap(), temp.cuda_ptr.unwrap(), &mut ptr_to_data);
+                                            temp.cuda_ptr = Some(ptr_to_data);
+                                        }
+                                        temp.shape = og_shape;
+                                        temp.data = vec![T::from(0.0).unwrap(); temp.shape.iter().product()];
                                     }
                                 }
-                                for i in 0..reduce_ctn {
-                                    got = got.sum_axis(ndarray::Axis(0));
-                                    corrected_shape[i as usize] = 1;
-                                }
-                                temp.data = got.iter().map(|x| *x).collect();
-                                temp.shape = corrected_shape;
                             } else {
                                 temp = MulOp::forward(&vec![&output, &temp]);
                             }
