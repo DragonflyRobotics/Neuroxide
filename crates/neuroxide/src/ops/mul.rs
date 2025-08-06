@@ -65,8 +65,8 @@ where
             panic!("Shapes are not broadcastable");
         }
         assert!(a.shape == b.shape);
-        a_arr = a_arr.broadcast(a.shape).unwrap().to_owned();
-        b_arr = b_arr.broadcast(b.shape).unwrap().to_owned();
+        a_arr = a_arr.broadcast(a.shape.clone()).unwrap().to_owned();
+        b_arr = b_arr.broadcast(b.shape.clone()).unwrap().to_owned();
         let final_shape: Vec<usize> = a_arr.shape().iter().map(|x| *x as usize).collect();
         
         
@@ -88,6 +88,10 @@ where
             Device::CUDA => {
                 #[cfg(feature = "cuda")]
                 unsafe {
+                    println!("{:?}", self.shape);
+                    println!("{:?}", other.shape);
+                    println!("{:?}", a.shape);
+                    println!("{:?}", b.shape);
                     assert!(self.shape == other.shape);
                     let a_flat = a_arr.as_slice().unwrap();
                     // let b_flat = b_arr.as_slice().unwrap();

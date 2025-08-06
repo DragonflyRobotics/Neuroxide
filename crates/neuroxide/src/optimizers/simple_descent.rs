@@ -25,7 +25,7 @@ where
     pub fn new(db: &Arc<RwLock<TensorDB<T>>>, lr: f32) -> Self {
         SimpleDescent {
             db: db.clone(),
-            lr: Tensor::<T>::new(db, vec![T::from(lr).unwrap()], vec![1], crate::types::device::Device::CPU, false),
+            lr: Tensor::<T>::new(db, vec![T::from(lr).unwrap(); 16], vec![16], crate::types::device::Device::CUDA, false),
             parameters: Vec::new(),
         }
     }
@@ -40,14 +40,14 @@ where
         for param in &mut self.parameters {
             let param_id = param.read().unwrap().id;
             let mut p = param.write().unwrap();
-            p.cpu();
+            // p.cpu();
 
             let grad_param = grad.get(&param_id).unwrap().clone();
             let new_param = p.clone() - (grad_param * self.lr.clone());
             p.data = new_param.data;
             p.shape = new_param.shape;
             p.clear_graph();
-            p.cuda();
+            // p.cuda();
         }
     }
 }

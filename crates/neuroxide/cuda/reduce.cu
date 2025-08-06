@@ -1,3 +1,4 @@
+#include "handles.cuh"
 #include <iostream>
 #include <ostream>
 #include <stdio.h>
@@ -9,6 +10,9 @@
 
 #include <cuda_runtime.h>
 #include <cutensor.h>
+
+#include "handles.cuh"
+#include "pool.cuh"
 
 #define HANDLE_ERROR(x)                                               \
 { const auto err = x;                                                 \
@@ -76,14 +80,14 @@ void reduce(const int D, const int M, const int N, float *A, float **C)
     size_t sizeC = sizeof(floatTypeC) * elementsC;
 
     void *A_d = A;
-    void *C_d = nullptr;
-    HANDLE_CUDA_ERROR(cudaMalloc((void**)&C_d, sizeC));
+    void *C_d = pool.malloc(sizeC); // Allocate memory from the pool
+
 
     const uint32_t kAlignment = 256; // Alignment of the global-memory device pointers (bytes)
     // assert(uintptr_t(A_d) % kAlignment == 0);
     // assert(uintptr_t(C_d) % kAlignment == 0);
 
-    floatTypeC *C_h = (floatTypeC*) malloc(sizeof(floatTypeC) * elementsC);
+    // floatTypeC *C_h = (floatTypeC*) malloc(sizeof(floatTypeC) * elementsC);
 
 
     /*******************
@@ -91,19 +95,18 @@ void reduce(const int D, const int M, const int N, float *A, float **C)
      *******************/
 
 
-    for (int64_t i = 0; i < elementsC; i++) {
-        C_h[i] = 0.0;
-        std::cout << "C[" << i << "] = " << C_h[i] << std::endl;
-    }
-
-    HANDLE_CUDA_ERROR(cudaMemcpy(C_d, C_h, sizeC, cudaMemcpyHostToDevice));
+    // for (int64_t i = 0; i < elementsC; i++) {
+    //     C_h[i] = 0.0;
+    //     std::cout << "C[" << i << "] = " << C_h[i] << std::endl;
+    // }
+    //
+    // HANDLE_CUDA_ERROR(cudaMemcpy(C_d, C_h, sizeC, cudaMemcpyHostToDevice));
 
     /*************************
      * cuTENSOR
      *************************/
 
-    cutensorHandle_t handle;
-    HANDLE_ERROR(cutensorCreate(&handle));
+    cutensorHandle_t handle = handles.cutensor_handle;
 
     /**********************
      * Create Tensor Descriptors
@@ -194,18 +197,17 @@ void reduce(const int D, const int M, const int N, float *A, float **C)
     void *work = nullptr;
     if (actualWorkspaceSize > 0)
     {
-        HANDLE_CUDA_ERROR(cudaMalloc(&work, actualWorkspaceSize));
-        assert(uintptr_t(work) % 128 == 0); // workspace must be aligned to 128 byte-boundary
+        // HANDLE_CUDA_ERROR(cudaMalloc(&work, actualWorkspaceSize));
+        work = pool.malloc(actualWorkspaceSize); // Allocate workspace from the pool
+        // assert(uintptr_t(work) % 256 == 0); // workspace must be aligned to 128 byte-boundary
     }
 
     /**********************
      * Run
      **********************/
 
-    cudaStream_t stream;
+    cudaStream_t stream = pool.get_stream();
     HANDLE_CUDA_ERROR(cudaStreamCreate(&stream));
-
-    HANDLE_CUDA_ERROR(cudaMemcpy(C_d, C_h, sizeC, cudaMemcpyHostToDevice));
     HANDLE_CUDA_ERROR(cudaDeviceSynchronize());
 
 
@@ -217,18 +219,15 @@ void reduce(const int D, const int M, const int N, float *A, float **C)
 
     /*************************/
 
-    // copy data back and print
-    HANDLE_CUDA_ERROR(cudaMemcpy(C_h, C_d, sizeC, cudaMemcpyDeviceToHost));
-    HANDLE_CUDA_ERROR(cudaDeviceSynchronize());
-    printf("=== Result C matrix ===\n");
-    for (size_t i = 0; i < elementsC; i++)
-    {
-        std::cout << "C[" << i << "] = " << C_h[i] << std::endl;
-    }
-    *C = C_h;
+    // // copy data back and print
+    // printf("=== Result C matrix ===\n");
+    // for (size_t i = 0; i < elementsC; i++)
+    // {
+    //     std::cout << "C[" << i << "] = " << C_h[i] << std::endl;
+    // }
+    *C = (float*) C_d;
 
 
-    HANDLE_ERROR(cutensorDestroy(handle));
     HANDLE_ERROR(cutensorDestroyPlan(plan));
     HANDLE_ERROR(cutensorDestroyOperationDescriptor(desc));
     HANDLE_ERROR(cutensorDestroyTensorDescriptor(descA));

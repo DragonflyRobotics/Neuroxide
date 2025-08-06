@@ -11,6 +11,8 @@
 #include <cutensor.h>
 
 #include "utils.cuh"
+#include "handles.cuh"
+#include "pool.cuh"
 
 #define HANDLE_ERROR(x)                                                   \
 { auto const __err = x;                                                   \
@@ -61,12 +63,13 @@ void transpose(const int M, const int N, float *A, float **C) {
 
     void *A_d = A;
     void *C_d;
-    checkCUDASuccess(cudaMalloc((void**) &C_d, sizeC));
+    // checkCUDASuccess(cudaMalloc((void**) &C_d, sizeC));
+    C_d = (void*) pool.malloc(sizeC);
 
     uint32_t const kAlignment = 256;  // Alignment of the global-memory device pointers (bytes)
-    assert(uintptr_t(A_d) % kAlignment == 0);
-    assert(uintptr_t(C_d) % kAlignment == 0);
-
+    // assert(uintptr_t(A_d) % kAlignment == 0);
+    // assert(uintptr_t(C_d) % kAlignment == 0);
+    //
     std::vector<int64_t> strideA = {extentA[1], 1};  // B, H, W
     std::vector<int64_t> strideC = {extentC[1], 1};  // B, H, W
 
@@ -74,8 +77,7 @@ void transpose(const int M, const int N, float *A, float **C) {
      * CUTENSOR
      *************************/
 
-    cutensorHandle_t handle;
-    HANDLE_ERROR(cutensorCreate(&handle));
+    cutensorHandle_t handle = handles.cutensor_handle;
 
     /**********************
      * Create Tensor Descriptors
@@ -157,20 +159,19 @@ void transpose(const int M, const int N, float *A, float **C) {
 
     HANDLE_ERROR(cutensorPermute(handle,
                                  plan,
-                                 &alpha, A_d, C_d, nullptr /* stream */));
+                                 &alpha, A_d, C_d, pool.get_stream() /* stream */));
 
-    floatTypeC *temp;
-    checkCUDASuccess(cudaMallocHost((void**) &temp, sizeof(floatTypeC) * elementsC));
-    checkCUDASuccess(cudaMemcpy(temp, C_d, sizeC, cudaMemcpyDeviceToHost));
-    for (int i = 0; i < elementsC; i++) {
-        std::cout << "C[" << i << "] = " << temp[i] << std::endl;
-    }
+    // floatTypeC *temp;
+    // checkCUDASuccess(cudaMallocHost((void**) &temp, sizeof(floatTypeC) * elementsC));
+    // checkCUDASuccess(cudaMemcpy(temp, C_d, sizeC, cudaMemcpyDeviceToHost));
+    // for (int i = 0; i < elementsC; i++) {
+    //     std::cout << "C[" << i << "] = " << temp[i] << std::endl;
+    // }
     *C = (float*)C_d;
 
     /*************************/
 
 
-    HANDLE_ERROR(cutensorDestroy(handle));
     HANDLE_ERROR(cutensorDestroyPlan(plan));
     HANDLE_ERROR(cutensorDestroyOperationDescriptor(desc));
     HANDLE_ERROR(cutensorDestroyPlanPreference(planPref));
@@ -214,20 +215,22 @@ void transpose_b(const int D, const int M, const int N, const int broad, float *
     if (broad == 1) {
         A_d = A;
     } else {
-        checkCUDASuccess(cudaMalloc((void**) &A_d, sizeA));
+        // checkCUDASuccess(cudaMalloc((void**) &A_d, sizeA));
+        A_d = (void**) pool.malloc(sizeA);
         for (int i = 0; i < broad; i++) {
             checkCUDASuccess(cudaMemcpy((floatTypeA*)A_d + i * elementsA/broad, A, sizeA/broad, cudaMemcpyHostToDevice));
         }
     }
-    std::cout << "A_d = " << A_d << std::endl;
-    floatTypeC *temp2;
-    checkCUDASuccess(cudaMallocHost((void**) &temp2, sizeof(floatTypeA) * elementsA));
-    checkCUDASuccess(cudaMemcpy(temp2, A_d, sizeA, cudaMemcpyDeviceToHost));
-    for (int i = 0; i < elementsA; i++) {
-        std::cout << "a[" << i << "] = " << temp2[i] << std::endl;
-    }
+    // std::cout << "A_d = " << A_d << std::endl;
+    // floatTypeC *temp2;
+    // checkCUDASuccess(cudaMallocHost((void**) &temp2, sizeof(floatTypeA) * elementsA));
+    // checkCUDASuccess(cudaMemcpy(temp2, A_d, sizeA, cudaMemcpyDeviceToHost));
+    // for (int i = 0; i < elementsA; i++) {
+    //     std::cout << "a[" << i << "] = " << temp2[i] << std::endl;
+    // }
     void *C_d;
-    checkCUDASuccess(cudaMalloc((void**) &C_d, sizeC));
+    C_d = (void*) pool.malloc(sizeC);
+    // checkCUDASuccess(cudaMalloc((void**) &C_d, sizeC));
 
     uint32_t const kAlignment = 256;  // Alignment of the global-memory device pointers (bytes)
     std::cout << uintptr_t(A_d) << " " << uintptr_t(C_d) << std::endl;
@@ -241,8 +244,7 @@ void transpose_b(const int D, const int M, const int N, const int broad, float *
      * CUTENSOR
      *************************/
 
-    cutensorHandle_t handle;
-    HANDLE_ERROR(cutensorCreate(&handle));
+    cutensorHandle_t handle = handles.cutensor_handle;
 
     /**********************
      * Create Tensor Descriptors
@@ -324,20 +326,19 @@ void transpose_b(const int D, const int M, const int N, const int broad, float *
 
     HANDLE_ERROR(cutensorPermute(handle,
                                  plan,
-                                 &alpha, A_d, C_d, nullptr /* stream */));
+                                 &alpha, A_d, C_d, pool.get_stream()/* stream */));
 
-    floatTypeC *temp;
-    checkCUDASuccess(cudaMallocHost((void**) &temp, sizeof(floatTypeC) * elementsC));
-    checkCUDASuccess(cudaMemcpy(temp, C_d, sizeC, cudaMemcpyDeviceToHost));
-    for (int i = 0; i < elementsC; i++) {
-        std::cout << "C[" << i << "] = " << temp[i] << std::endl;
-    }
+    // floatTypeC *temp;
+    // checkCUDASuccess(cudaMallocHost((void**) &temp, sizeof(floatTypeC) * elementsC));
+    // checkCUDASuccess(cudaMemcpy(temp, C_d, sizeC, cudaMemcpyDeviceToHost));
+    // for (int i = 0; i < elementsC; i++) {
+    //     std::cout << "C[" << i << "] = " << temp[i] << std::endl;
+    // }
     *C = (float*)C_d;
 
     /*************************/
 
 
-    HANDLE_ERROR(cutensorDestroy(handle));
     HANDLE_ERROR(cutensorDestroyPlan(plan));
     HANDLE_ERROR(cutensorDestroyOperationDescriptor(desc));
     HANDLE_ERROR(cutensorDestroyPlanPreference(planPref));

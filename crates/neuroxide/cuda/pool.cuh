@@ -39,16 +39,41 @@ class MemoryPool {
         destroy();
     }
 
-    float* malloc (size_t bytes) {
-        size_t elements_count = bytes / sizeof(float); // convert bytes to number of floats
-        if (current_position + elements_count < (float*)start + (pool_size/sizeof(float))) { // check if there is enough space
-            float* return_pos = current_position;
-            current_position += elements_count; 
-            return return_pos;
-        } else {
-            printf("Not enough space in pool, trying to allocate %zu bytes\n", bytes);
+    cudaStream_t get_stream() {
+        return stream;
+    }
+
+    // float* malloc (size_t bytes) {
+    //     size_t elements_count = bytes / sizeof(float); // convert bytes to number of floats
+    //     if (current_position + elements_count < (float*)start + (pool_size/sizeof(float))) { // check if there is enough space
+    //         float* return_pos = current_position;
+    //         current_position += elements_count; 
+    //         return return_pos;
+    //     } else {
+    //         printf("Not enough space in pool, trying to allocate %zu bytes\n", bytes);
+    //         exit(4);
+    //     }
+    // }
+    float* malloc(size_t bytes, size_t alignment = 128) {
+        uintptr_t current_addr = reinterpret_cast<uintptr_t>(current_position);
+
+        // Align to next multiple of `alignment`
+        uintptr_t aligned_addr = (current_addr + alignment - 1) & ~(alignment - 1);
+        float* aligned_ptr = reinterpret_cast<float*>(aligned_addr);
+
+        // Calculate how much memory was used (includes padding)
+        size_t total_bytes = (aligned_addr - current_addr) + bytes;
+        size_t advance = (total_bytes + sizeof(float) - 1) / sizeof(float);
+
+        float* new_position = current_position + advance;
+
+        if ((char*)new_position > (char*)start + pool_size) {
+            printf("Not enough space in pool! Requested %zu aligned bytes\n", bytes);
             exit(4);
         }
+
+        current_position = new_position;
+        return aligned_ptr;
     }
 
     void reset() {

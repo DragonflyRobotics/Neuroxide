@@ -57,8 +57,8 @@ where
 
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
-        println!("Input 1: {}", inputs[0]);
-        println!("Input 2: {}", inputs[1]);
+        // println!("Input 1: {}", inputs[0]);
+        // println!("Input 2: {}", inputs[1]);
 
         // println!("Shape 1: {:?}", shape1);
         // println!("Shape 2: {:?}", shape2);
@@ -191,22 +191,22 @@ where
                     }
                 } else if inputs[0].shape.len() > 2 && inputs[1].shape.len() > 2 {
                     assert!(inputs[0].shape[shape1.len()-1] == inputs[1].shape[inputs[1].shape.len()-2], "Matrix multiplication requires the second dimension of the first matrix to match the first dimension of the second matrix");
-                    println!(
-                        "Original Shapes: {:?} and {:?}",
-                        inputs[0].shape, inputs[1].shape
-                    );
-                    println!(
-                        "Broadcasted Shapes: {:?} {:?} --> {:?}",
-                        shape1, shape2, shape
-                    );
+                    // println!(
+                    //     "Original Shapes: {:?} and {:?}",
+                    //     inputs[0].shape, inputs[1].shape
+                    // );
+                    // println!(
+                    //     "Broadcasted Shapes: {:?} {:?} --> {:?}",
+                    //     shape1, shape2, shape
+                    // );
                     let mut a_broad_ctn: i32 = 1;
                     for (a_og, a_broad) in inputs[0].shape[0..inputs[0].shape.len() - 2]
                         .iter()
                         .zip(shape1[0..shape1.len() - 2].iter())
                     {
-                        println!("{} -> {}", a_og, a_broad);
+                        // println!("{} -> {}", a_og, a_broad);
                         if a_og != a_broad && *a_og == 1 {
-                            println!("Broadcasting shape1: {:?} to {:?}", inputs[0].shape, shape1);
+                            // println!("Broadcasting shape1: {:?} to {:?}", inputs[0].shape, shape1);
                             a_broad_ctn *= *a_broad as i32;
                         }
                     }
@@ -215,9 +215,9 @@ where
                         .iter()
                         .zip(shape2[0..shape2.len() - 2].iter())
                     {
-                        println!("{} -> {}", b_og, b_broad);
+                        // println!("{} -> {}", b_og, b_broad);
                         if b_og != b_broad && *b_og == 1 {
-                            println!("Broadcasting shape2: {:?} to {:?}", inputs[1].shape, shape2);
+                            // println!("Broadcasting shape2: {:?} to {:?}", inputs[1].shape, shape2);
                             b_broad_ctn *= *b_broad as i32;
                         }
                     }
@@ -314,8 +314,8 @@ where
         // println!("{}", inputs[1]);
         // println!("W.R.T");
         // println!("{}", grad.unwrap());
-        println!("Shape 1 {:?}", inputs[0].shape);
-        println!("Shape 2 {:?}", inputs[1].shape);
+        // println!("Shape 1 {:?}", inputs[0].shape);
+        // println!("Shape 2 {:?}", inputs[1].shape);
         let mut shape1 = inputs[0].shape.clone();
         let mut shape2 = inputs[1].shape.clone();
 
@@ -336,7 +336,7 @@ where
         let mut b_t: ArrayD<T>;
         if device == Device::CPU {
             let _ = broadcast_shapes_matmul(&mut shape1, &mut shape2).unwrap().0;
-            println!("Broadcasted Shapes: {:?} {:?}", shape1, shape2);
+            // println!("Broadcasted Shapes: {:?} {:?}", shape1, shape2);
             let mul_shapes = [shape1, shape2];
             let b_arr_option = b_arr.broadcast(mul_shapes[1 - grad_index].clone());
             if b_arr_option.is_none() {

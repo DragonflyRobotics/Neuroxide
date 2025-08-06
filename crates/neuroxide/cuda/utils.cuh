@@ -7,6 +7,7 @@
 // For the CUDA runtime routines (prefixed with "cuda_")
 #include <cuda_runtime.h>
 #include "pool.cuh"
+#include "handles.cuh"
 
 // TODO: Free all tensors moved to cpu
 inline bool verifyAllocations(float* var)
@@ -97,8 +98,7 @@ inline int binaryVectorOp(const int len, float* A, float* B, float** C, void (*k
     // int threadsPerBlock = 256;
     
     // Query device properties
-    cudaDeviceProp prop;
-    checkCUDASuccess(cudaGetDeviceProperties(&prop, 0));
+    cudaDeviceProp prop = handles.prop;
 
     // Set threadsPerBlock to a multiple of warp size (32) and within the max limit
     int threadsPerBlock = prop.maxThreadsPerBlock;
@@ -163,8 +163,7 @@ inline int unaryVectorOp(const int len, float* A, float** C, void (*kernel)(cons
     // int threadsPerBlock = 256;
     
     // Query device properties
-    cudaDeviceProp prop;
-    checkCUDASuccess(cudaGetDeviceProperties(&prop, 0));
+    cudaDeviceProp prop = handles.prop;
 
     // Set threadsPerBlock to a multiple of warp size (32) and within the max limit
     int threadsPerBlock = prop.maxThreadsPerBlock;

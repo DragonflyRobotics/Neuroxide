@@ -7,20 +7,6 @@ import random
 # Set device (CPU to match the Rust code)
 device = torch.device("cuda")
 
-# Define the model
-# class SimpleNet(nn.Module):
-#     def __init__(self):
-#         super(SimpleNet, self).__init__()
-#         self.linear1 = nn.Linear(16, 16)
-#         self.linear2 = nn.Linear(16, 16)
-#
-#     def forward(self, x):
-#         x = self.linear1(x)
-#         x = self.linear2(x)
-#         return x
-
-# Initialize model, optimizer, loss function
-# model = SimpleNet().to(device)
 weights1 = torch.ones((16, 16), device=device)
 weights2 = torch.ones((16, 16), device=device)
 bias1 = torch.zeros((16,), device=device)
@@ -49,7 +35,7 @@ for epoch in range(1500):
     loss.backward()
     optimizer.step()
 
-    print(f"Epoch: {epoch} Loss: {loss.item()}")
+    # print(f"Epoch: {epoch} Loss: {loss.item()}")
 
 # Test output
 test_input = torch.tensor([[4.0] * 16], dtype=torch.float32, device=device)

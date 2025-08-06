@@ -248,8 +248,8 @@ where
                         drop(db);
                         if let Ops::MatMulEnum = op_type {
                             // output is b_t and temp is downstream so follow upstream dot b_t
-                            println!("{} {:?}", temp, temp.device);
-                            println!("output: {} {:?}", output, output.device);
+                            // println!("{} {:?}", temp, temp.device);
+                            // println!("output: {} {:?}", output, output.device);
                             if input_shapes[0] > 1 || input_shapes[1] > 1 {
                                 if grad_index == 0 {
                                     temp = MatMulOp::forward(&vec![&temp, &output]);
@@ -259,7 +259,7 @@ where
                                 // println!("temp: {}", temp);
                                 if device == Device::CPU {
                                     let mut reduce_ctn = 0;
-                                    println!("d_shape: {:?}, dx_shape: {:?}", d_shape, dx_shape);
+                                    // println!("d_shape: {:?}, dx_shape: {:?}", d_shape, dx_shape);
                                     if d_shape.len() > 2 && dx_shape.len() > 2 {
                                         for (a, b) in d_shape[0..d_shape.len() - 2].iter().zip(dx_shape[0..dx_shape.len() - 2].iter()) {
                                             reduce_ctn += (a != b) as i32;
@@ -268,7 +268,7 @@ where
                                     let mut got = ArrayD::from_shape_vec(IxDyn(&temp.shape), temp.data.clone()).unwrap();
                                     let mut corrected_shape = got.shape().to_vec();
                                     for i in 0..reduce_ctn {
-                                        println!("reducing axis: {}", i);
+                                        // println!("reducing axis: {}", i);
                                         got = got.sum_axis(ndarray::Axis(0));
                                         corrected_shape[i as usize] = 1;
                                     }
@@ -276,7 +276,7 @@ where
                                     temp.shape = corrected_shape;
                                 } else {
                                     let mut reduce_ctn = 0;
-                                    println!("d_shape: {:?}, dx_shape: {:?}", d_shape, dx_shape);
+                                    // println!("d_shape: {:?}, dx_shape: {:?}", d_shape, dx_shape);
                                     let mut og_shape = temp.shape.clone();
                                     let mut index = 0;
                                     if d_shape.len() > 2 && dx_shape.len() > 2 {
@@ -305,8 +305,6 @@ where
                                 temp = MulOp::forward(&vec![&output, &temp]);
                             }
                         } else {
-                            // println!("temp: {}", temp);
-                            // println!("output: {}", output);
                             temp = MulOp::forward(&vec![&output, &temp]);
                             // println!("temp: {}", temp);
                         }
