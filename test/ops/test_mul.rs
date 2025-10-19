@@ -88,7 +88,7 @@ fn backward() {
     assert!(relative_eq!(result.data[0], 525.0));
     assert_eq!(result.shape, vec![1]);
 
-    let grad = result.backward(None);
+    let grad = result.backward(None, Device::CPU);
     assert!(relative_eq!(grad.get(&x.id).unwrap().data[0], 210.0));
     assert_eq!(result.shape, vec![1]);
 }

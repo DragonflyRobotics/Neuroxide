@@ -1,43 +1,22 @@
-[package]
-name = "Neuroxide"
-version = "0.1.0"
-edition = "2021"
-build = "build.rs"
+[workspace]
+members = [
+    "crates/neuroxide",
+    "crates/mempool",
+    "bin"
+]
+resolver = "3"
 
-[lib]
-name = "neuroxide"
-path = "src/neuroxide/lib.rs"
 
-[[bin]]
-name = "neuroxide_main"
-path = "src/bin.rs"
-
-[[test]]
-name = "neuroxide_test"
-path = "test/test.rs"
-
-[[bench]]
-name = "neuroxide_bench"
-path = "bench/bench.rs"
-
-[dependencies]
+[workspace.dependencies]
 approx = "0.5.1"
-libc = "0.2.159"
+libc = "0.2.174"
 num = "0.4.3"
-ndarray = { version = "0.16.0", features = ["matrixmultiply-threading", "blas"] }
-blas-src = { version = "0.10", features = ["intel-mkl"] }
-once_cell = "1.19.0"
-petgraph = "0.6.5"
-rand = "0.8.5"
-pkg-config = "0.3.31"
+ndarray = { version = "0.16.1", features = ["matrixmultiply-threading", "blas"] }
+blas-src = { version = "0.11", features = ["intel-mkl"] }
+once_cell = "1.21.3"
+petgraph = "0.8.2"
+rand = "0.9.2"
+pkg-config = "0.3.32"
 trait-set = "0.3.0"
+cc = "1.2.3"
 
-[build-dependencies]
-cc = "1.1.30"
-
-[features]
-cuda = []
-default = []
-
-[toolchain]
-channel = "stable"

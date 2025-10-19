@@ -70,6 +70,6 @@ fn backward() {
     result = MulOp::forward(&vec![&result, &x]);
     assert!(relative_eq!(result.data[0], 225.0));
 
-    let grad = result.backward(None);
+    let grad = result.backward(None, Device::CPU);
     assert!(relative_eq!(grad.get(&x.id).unwrap().data[0], 90.0));
 }
