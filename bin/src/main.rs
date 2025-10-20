@@ -14,14 +14,14 @@ fn main() {
     let x = Tensor::new([1.0, 2.0, 3.0, 4.0], [2usize, 2usize]);
 
     // (x * x)
-    let x2 = Mul::forward((x.clone(), x.clone()));
+    let x2 = Mul::forward((&x, &x));
     // (x * (x + x))
-    let x_plus_x = Add::forward((x.clone(), x.clone()));
-    let x_xplusx = Mul::forward((x.clone(), x_plus_x.clone()));
+    let x_plus_x = Add::forward((&x, &x));
+    let x_xplusx = Mul::forward((&x, &x_plus_x));
     // (x*x + x)
-    let x2_plus_x = Add::forward((x2.clone(), x.clone()));
+    let x2_plus_x = Add::forward((&x2, &x));
     // y = (x*x + x) * (x * (x + x))
-    let y = Mul::forward((x2_plus_x.clone(), x_xplusx.clone()));
+    let y = Mul::forward((&x2_plus_x, &x_xplusx));
 
     // Trigger backward pass
     y.backward();

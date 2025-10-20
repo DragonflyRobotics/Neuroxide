@@ -46,15 +46,36 @@ impl<T: TensorElement> ToTensorInputs<T> for SharedTensor<T> {
     }
 }
 
+impl<T: TensorElement> ToTensorInputs<T> for &SharedTensor<T> {
+    fn into_inputs(self) -> Box<[SharedTensor<T>]> {
+        Box::new([self.clone()])
+    }
+}
+
 impl<T: TensorElement> ToTensorInputs<T> for (SharedTensor<T>, SharedTensor<T>) {
     fn into_inputs(self) -> Box<[SharedTensor<T>]> {
         Box::new([self.0, self.1])
     }
 }
 
+impl<T: TensorElement> ToTensorInputs<T> for (&SharedTensor<T>, &SharedTensor<T>) {
+    fn into_inputs(self) -> Box<[SharedTensor<T>]> {
+        Box::new([self.0.clone(), self.1.clone()])
+    }
+}
+
 impl<T: TensorElement> ToTensorInputs<T> for Vec<SharedTensor<T>> {
     fn into_inputs(self) -> Box<[SharedTensor<T>]> {
         self.into_boxed_slice()
+    }
+}
+
+impl<T: TensorElement> ToTensorInputs<T> for Vec<&SharedTensor<T>> {
+    fn into_inputs(self) -> Box<[SharedTensor<T>]> {
+        self.into_iter()
+            .map(|t| t.clone())
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
     }
 }
 
