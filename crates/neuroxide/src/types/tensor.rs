@@ -1,19 +1,25 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ops::op::Operation,
-    types::{device::Device, tensor_data::TensorData, tensor_element::TensorElement},
+    ops::op::{Operation, ToShapeInputs, ToTensorValueInputs},
+    types::{
+        device::Device,
+        tensor_data::TensorData,
+        tensor_element::{SharedTensor, TensorElement},
+    },
 };
 
 pub struct Tensor<T> {
     data: TensorData<T>,
     requires_grad: bool,
-    gradient: Option<Arc<Mutex<Tensor<T>>>>,
+    gradient: Option<SharedTensor<T>>,
     op: Option<Arc<Mutex<dyn Operation<T>>>>,
 }
 
 impl<T: TensorElement> Tensor<T> {
-    pub fn new(data: Vec<T>, shape: Box<[usize]>) -> Arc<Mutex<Self>> {
+    pub fn new<I: ToShapeInputs, V: ToTensorValueInputs<T>>(data: V, shape: I) -> SharedTensor<T> {
+        let data = data.into_values();
+        let shape = shape.into_shape();
         let device = Device::CPU;
         let tensor_data = TensorData::new(data, shape, device).unwrap();
         Arc::new(Mutex::new(Tensor {
@@ -24,7 +30,8 @@ impl<T: TensorElement> Tensor<T> {
         }))
     }
 
-    pub fn ones(shape: Box<[usize]>) -> Arc<Mutex<Self>> {
+    pub fn ones<I: ToShapeInputs>(shape: I) -> SharedTensor<T> {
+        let shape = shape.into_shape();
         let device = Device::CPU;
         let tensor_data = TensorData::new(
             vec![T::from(1).unwrap(); shape.clone().into_iter().product()],
@@ -64,11 +71,11 @@ impl<T: TensorElement> Tensor<T> {
         op.backward(self.gradient.clone().unwrap());
     }
 
-    pub fn set_gradient(&mut self, grad: Arc<Mutex<Tensor<T>>>) {
+    pub fn set_gradient(&mut self, grad: SharedTensor<T>) {
         self.gradient = Some(grad);
     }
 
-    pub fn get_gradient(&self) -> Option<Arc<Mutex<Tensor<T>>>> {
+    pub fn get_gradient(&self) -> Option<SharedTensor<T>> {
         self.gradient.clone()
     }
 }

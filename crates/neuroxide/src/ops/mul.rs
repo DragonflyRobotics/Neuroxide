@@ -1,10 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ops::{
-        mul::Mul,
-        op::{Operation, ToTensorInputs},
-    },
+    ops::op::{Operation, ToTensorInputs},
     types::{
         tensor::Tensor,
         tensor_element::{SharedTensor, TensorElement},
@@ -12,11 +9,11 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Add<T> {
+pub struct Mul<T> {
     input_tensors: Box<[SharedTensor<T>]>,
 }
 
-impl<T: TensorElement> Operation<T> for Add<T> {
+impl<T: TensorElement> Operation<T> for Mul<T> {
     fn forward<I: ToTensorInputs<T>>(inputs: I) -> SharedTensor<T> {
         let inputs = inputs.into_inputs();
         if inputs.len() != 2 {
@@ -30,7 +27,7 @@ impl<T: TensorElement> Operation<T> for Add<T> {
                 .zip(a.get_values().iter())
                 .map(|(x, y)| {
                     // Assuming T implements the Add trait
-                    *x + *y
+                    *x * *y
                 })
                 .collect::<Vec<T>>()
         } else {
@@ -40,13 +37,13 @@ impl<T: TensorElement> Operation<T> for Add<T> {
                 .zip(b.get_values().iter())
                 .map(|(x, y)| {
                     // Assuming T implements the Add trait
-                    *x + *y
+                    *x * *y
                 })
                 .collect()
         };
         let result_shape = a.get_shape().clone();
         let result_tensor = Tensor::new(result_values, result_shape);
-        let add = Add {
+        let add = Mul {
             input_tensors: inputs.clone(),
         };
         result_tensor
@@ -61,25 +58,33 @@ impl<T: TensorElement> Operation<T> for Add<T> {
         // This is a placeholder and should be implemented as needed
         //
         if Arc::ptr_eq(&self.input_tensors[0], &self.input_tensors[1]) {
+            // If both inputs are the same tensor, gradient is 2 * upstream gradient
+            println!("Fix me later: {:?}", upstream);
             let op_grad = {
-                let a = self.input_tensors[0].lock().unwrap();
+                let a = self.input_tensors[0].lock().unwrap().get_shape().clone();
                 Mul::forward((
-                    upstream.clone(),
-                    Tensor::new(
-                        vec![T::from(2).unwrap(); a.get_values().len()],
-                        a.get_shape().clone(),
-                    ),
+                    Mul::forward((
+                        upstream.clone(),
+                        Tensor::new(vec![T::from(2).unwrap(); a.iter().product()], a),
+                    )),
+                    self.input_tensors[0].clone(),
                 ))
             };
             Self::apply_grad(self.input_tensors[0].clone(), op_grad.clone());
             Self::recurse_backward(self.input_tensors[0].clone());
         } else {
-            let op_grad = Tensor::new(
-                upstream.lock().unwrap().get_values().clone(),
-                self.input_tensors[0].lock().unwrap().get_shape().clone(),
-            );
-            Self::apply_grad(self.input_tensors[0].clone(), op_grad.clone());
-            Self::apply_grad(self.input_tensors[1].clone(), op_grad.clone());
+            let shape_0 = self.input_tensors[0].lock().unwrap().get_shape().clone();
+            let shape_1 = self.input_tensors[1].lock().unwrap().get_shape().clone();
+            let op_grad_0 = Mul::forward((
+                Tensor::new(upstream.lock().unwrap().get_values().clone(), shape_1),
+                self.input_tensors[1].clone(),
+            ));
+            let op_grad_1 = Mul::forward((
+                Tensor::new(upstream.lock().unwrap().get_values().clone(), shape_0),
+                self.input_tensors[0].clone(),
+            ));
+            Self::apply_grad(self.input_tensors[0].clone(), op_grad_0.clone());
+            Self::apply_grad(self.input_tensors[1].clone(), op_grad_1.clone());
             Self::recurse_backward(self.input_tensors[0].clone());
             Self::recurse_backward(self.input_tensors[1].clone());
         };
