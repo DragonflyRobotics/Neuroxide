@@ -11,10 +11,11 @@ resolver = "3"
 
 
 [workspace.dependencies]
-cuda = { path = "crates/cuda", features = ["cuda"] }
-mempool = { path = "crates/mempool", features = ["cuda"] }
+neuroxide = { path = "crates/neuroxide" }
+cuda = { path = "crates/cuda" }
+mempool = { path = "crates/mempool" }
 types = { path = "crates/types" }
-ops = { path = "crates/ops", features = ["cuda"] }
+ops = { path = "crates/ops" }
 approx = "0.5.1"
 libc = "0.2.174"
 num = "0.4.3"

@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 num.workspace = true
 trait-set.workspace = true
+
+[features]
+cuda = []
+default = []

@@ -77,6 +77,16 @@ impl<T: TensorElement> Tensor<T> {
     pub fn get_gradient(&self) -> Option<SharedTensor<T>> {
         self.gradient.clone()
     }
+
+    #[cfg(feature = "cuda")]
+    pub fn cuda(&self) {
+        println!("CUDA not implemented yet");
+    }
+
+    #[cfg(not(feature = "cuda"))]
+    pub fn cuda(&self) {
+        println!("CUDA feature not enabled, running CPU path");
+    }
 }
 
 impl<T> std::fmt::Debug for Tensor<T>

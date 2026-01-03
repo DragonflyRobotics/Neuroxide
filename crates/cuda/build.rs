@@ -77,7 +77,5 @@ fn main() {
 
 #[cfg(not(feature = "cuda"))]
 fn main() {
-    // link openblas
-    println!("cargo:rustc-link-search=native=/usr/lib64"); // Path to the OpenBLAS library
-    println!("cargo:rustc-link-lib=dylib=openblas"); // Link with the OpenBLAS dynamic library
+    println!("cargo:warning=CUDA feature not enabled, skipping CUDA build steps");
 }

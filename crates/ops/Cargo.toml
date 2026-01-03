@@ -8,3 +8,4 @@ types.workspace = true
 
 [features]
 cuda = []
+default = []

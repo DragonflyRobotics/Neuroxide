@@ -6,8 +6,8 @@ edition = "2024"
 [dependencies]
 mempool.workspace = true
 cuda = { workspace = true, optional = true }
-ops.workspace = true
-types.workspace = true
+ops = { workspace = true }
+types = { workspace = true }
 
 approx.workspace = true 
 libc.workspace = true
@@ -25,4 +25,5 @@ cfg-if = "1.0.1"
 cc.workspace = true
 
 [features]
-cuda = ["dep:cuda"]
+cuda = ["dep:cuda", "types/cuda", "ops/cuda"]
+default = []

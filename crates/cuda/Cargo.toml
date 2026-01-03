@@ -16,4 +16,5 @@ toml = "0.9.8"
 cc = "1.2.44"
 
 [features]
-cuda = [] 
+default = [] 
+cuda = []
