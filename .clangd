@@ -1,0 +1,7 @@
+CompileFlags:
+  Add: [
+    "-x", "cuda",
+    "--cuda-path=/usr/local/cuda",
+    "--cuda-gpu-arch=sm_86",   # Adjust to your GPU architecture (e.g. sm_75, sm_80, sm_86)
+    "--cuda-host-only"         # Optional: speeds up indexing if you don't need device code
+  ]
