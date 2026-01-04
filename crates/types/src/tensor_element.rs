@@ -17,6 +17,8 @@ pub trait TensorHandleExt<T> {
         T: Clone;
     fn backward(&self);
     fn get_gradient(&self) -> Option<SharedTensor<T>>;
+    fn get_shape(&self) -> Box<[usize]>;
+    fn get_stride(&self) -> Box<[usize]>;
 }
 impl<T: TensorElement> TensorHandleExt<T> for Arc<Mutex<Tensor<T>>> {
     fn lock_ref(&self) -> std::sync::MutexGuard<'_, Tensor<T>> {
@@ -35,5 +37,11 @@ impl<T: TensorElement> TensorHandleExt<T> for Arc<Mutex<Tensor<T>>> {
     }
     fn get_gradient(&self) -> Option<SharedTensor<T>> {
         self.lock().unwrap().get_gradient()
+    }
+    fn get_shape(&self) -> Box<[usize]> {
+        self.lock().unwrap().get_shape()
+    }
+    fn get_stride(&self) -> Box<[usize]> {
+        self.lock().unwrap().get_stride()
     }
 }

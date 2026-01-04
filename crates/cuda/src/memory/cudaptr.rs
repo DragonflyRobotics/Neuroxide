@@ -6,7 +6,7 @@ pub struct CudaPtr<T> {
 
 impl<T: 'static> Pointer<T> for CudaPtr<T> {
     fn new(ptr: *mut T) -> Box<dyn DevicePtr> {
-        return Box::new(CudaPtr { ptr });
+        Box::new(CudaPtr { ptr })
     }
 
     fn shift(&self, offset: isize) -> CudaPtr<T> {

@@ -37,7 +37,7 @@ impl<T: TensorElement> ToTensorInputs<T> for Vec<SharedTensor<T>> {
 impl<T: TensorElement> ToTensorInputs<T> for Vec<&SharedTensor<T>> {
     fn into_inputs(self) -> Box<[SharedTensor<T>]> {
         self.into_iter()
-            .map(|t| t.clone())
+            .cloned()
             .collect::<Vec<_>>()
             .into_boxed_slice()
     }

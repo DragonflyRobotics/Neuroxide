@@ -1,3 +1,4 @@
+pub mod cat;
 pub mod device;
 pub mod input;
 pub mod op_stub;
