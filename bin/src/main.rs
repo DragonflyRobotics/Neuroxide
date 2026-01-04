@@ -7,6 +7,7 @@ use mempool::pool::PoolTrait;
 use neuroxide::ops::add::Add;
 use neuroxide::ops::mul::Mul;
 use neuroxide::types::op_stub::OperationStub;
+use neuroxide::types::tensor::SliceInfo;
 use neuroxide::types::tensor::Tensor;
 use neuroxide::types::tensor_element::TensorHandleExt;
 
@@ -49,6 +50,18 @@ fn main() {
     println!("Gradient dv/dy: {:?}", y.get_gradient());
     println!("Gradient dv/dz: {:?}", z.get_gradient());
 
+    let x = Tensor::new([0, 1, 2, 3, 4, 5, 6, 7], [2usize, 4usize]);
+    let y = Tensor::permute(&x, Box::new([1usize, 0usize]));
+    println!("Permuted Tensor: {:?}", y);
+    y.backward();
+    println!("Gradient dy/dx: {:?}", x.get_gradient());
+
+    let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    let shape = vec![4usize, 3usize, 1usize];
+    let tensor = Tensor::new(data.clone(), shape.clone());
+    println!("{:?}", tensor);
+    tensor.lock().unwrap().print();
+
     // x.lock().unwrap().cuda();
     //
     // // (x * x)
@@ -66,4 +79,42 @@ fn main() {
     //
     // println!("Forward result y: {:?}", y);
     // println!("Gradient dy/dx: {:?}", x.get_gradient());
+}
+fn print_tensor<T: std::fmt::Display>(data: &[T], shape: &[usize]) {
+    let ndim = shape.len();
+    let mut stack = vec![0; ndim];
+    for idx in 0..data.len() {
+        let mut multi_idx = vec![0; ndim];
+        let mut residual = idx;
+        for i in (0..ndim).rev() {
+            let dim = shape[i];
+            multi_idx[i] = residual % dim;
+            residual /= dim;
+        }
+        // Print opening brackets when a new slice along any axis starts
+        for i in 0..ndim {
+            if multi_idx[i] == 0 {
+                if stack[i] == 0 {
+                    stack[i] = 1;
+                    print!("[");
+                }
+            }
+        }
+
+        // Print the value
+        print!("{}", data[idx]);
+
+        // Print closing brackets when a slice along any axis ends
+        for i in (0..ndim).rev() {
+            if multi_idx[i] + 1 == shape[i] {
+                if stack[i] == 1 {
+                    stack[i] = 0;
+                    print!("]");
+                }
+            } else {
+                print!(", ");
+                break;
+            }
+        }
+    }
 }

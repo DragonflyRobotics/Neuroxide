@@ -1,4 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::fmt;
+use std::{
+    fmt::{Display, Formatter},
+    sync::{Arc, Mutex},
+};
 
 use num::{Num, NumCast};
 use trait_set::trait_set;
@@ -6,7 +10,7 @@ use trait_set::trait_set;
 use crate::tensor::Tensor;
 
 trait_set! {
-    pub trait TensorElement = std::ops::Add<Output = Self> + Num + NumCast + Copy + Clone + std::fmt::Debug + 'static;
+    pub trait TensorElement = std::ops::Add<Output = Self> + Num + NumCast + Copy + Clone + std::fmt::Debug + std::fmt::Display + 'static;
 }
 
 pub type SharedTensor<T> = Arc<Mutex<Tensor<T>>>;

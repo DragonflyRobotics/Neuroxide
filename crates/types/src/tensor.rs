@@ -5,8 +5,13 @@ use crate::{
     device::Device,
     input::{ToShapeInputs, ToTensorValueInputs},
     op_stub::OperationStub,
+    permute::Permute,
+    slice::Slice,
+    squeeze::Squeeze,
     tensor_data::TensorData,
     tensor_element::{SharedTensor, TensorElement, TensorHandleExt},
+    unsqueeze::Unsqueeze,
+    view::View,
 };
 
 pub struct Tensor<T> {
@@ -23,6 +28,14 @@ pub enum SliceInfo {
         end: usize,
         step: usize,
     }, // slice with step
+}
+
+#[derive(Debug)]
+pub(crate) struct ParsedSlice {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) step: usize,
+    pub(crate) length: usize, // length along this axis in the output tensor
 }
 
 impl<T: TensorElement> Tensor<T> {
@@ -146,6 +159,7 @@ impl<T: TensorElement> Tensor<T> {
                 .copy_from_slice(&other.values()[startb..startb + other_slab_size]);
         }
 
+        // TODO: Device handling
         let data = TensorData::new(final_vector.clone(), final_shape.clone(), Device::CPU).unwrap();
         let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(Cat {
             input_tensors: Box::new([one.clone(), other.clone()]),
@@ -153,26 +167,247 @@ impl<T: TensorElement> Tensor<T> {
         })));
         Arc::new(Mutex::new(Tensor {
             data,
-            requires_grad: false,
+            requires_grad: one.lock().unwrap().requires_grad || other.lock().unwrap().requires_grad,
             gradient: None,
             op,
         }))
     }
 
+    pub(crate) fn linear_to_multi(idx: usize, shape: &[usize]) -> Vec<usize> {
+        let mut indices = vec![0; shape.len()];
+        let mut residual = idx;
+        for i in (0..shape.len()).rev() {
+            indices[i] = residual % shape[i];
+            residual /= shape[i];
+        }
+        indices
+    }
+
     pub fn slice(one: &SharedTensor<T>, ranges: &[SliceInfo]) -> SharedTensor<T> {
-        let output_shape = one.get_shape().clone();
-        for (i, range) in ranges.iter().enumerate() {
-            match range {
-                SliceInfo::All => {}
+        let mut output_shape = one.get_shape().clone();
+        let parsed_slice = ranges
+            .iter()
+            .enumerate()
+            .map(|(i, range)| match range {
+                SliceInfo::All => ParsedSlice {
+                    start: 0,
+                    end: one.get_shape()[i],
+                    step: 1,
+                    length: one.get_shape()[i],
+                },
                 SliceInfo::Range { start, end, step } => {
-                    let dim_size = output_shape[i];
-                    let slice_size = ((*end - *start) + step - 1) / step;
+                    let dim_size = one.get_shape()[i];
                     if *end > dim_size || *start >= *end {
                         panic!("Slice indices are out of bounds.");
                     }
+                    let slice_size = ((*end - *start) + step - 1) / step;
+                    output_shape[i] = slice_size;
+                    ParsedSlice {
+                        start: *start,
+                        end: *end,
+                        step: *step,
+                        length: slice_size,
+                    }
+                }
+            })
+            .collect::<Vec<ParsedSlice>>();
+
+        let output_numel: usize = output_shape.iter().product();
+        let mut output_values: Vec<T> = Vec::with_capacity(output_numel);
+        for out_linear in 0..output_numel {
+            let out_multi = Tensor::<T>::linear_to_multi(out_linear, &output_shape);
+            let mut in_multi = vec![0; out_multi.len()];
+            for i in 0..out_multi.len() {
+                let ps = &parsed_slice[i];
+                in_multi[i] = ps.start + out_multi[i] * ps.step;
+            }
+            let in_linear: usize = in_multi
+                .iter()
+                .enumerate()
+                .map(|(dim, &idx)| idx * one.get_stride()[dim])
+                .sum();
+            output_values.push(one.values()[in_linear]);
+        }
+
+        let tensor_data =
+            TensorData::new(output_values.clone(), output_shape.clone(), Device::CPU).unwrap();
+        let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(Slice {
+            input_tensors: Box::new([one.clone()]),
+            parsed_slices: parsed_slice,
+        })));
+
+        Arc::new(Mutex::new(Tensor {
+            data: tensor_data,
+            requires_grad: one.lock().unwrap().requires_grad,
+            gradient: None,
+            op,
+        }))
+    }
+
+    pub fn unsqueeze(one: &SharedTensor<T>, axis: usize) -> SharedTensor<T> {
+        let mut new_shape = one.get_shape().to_vec();
+        new_shape.insert(axis, 1);
+        // TODO: Device handling
+        let tensor_data = TensorData::new(
+            one.values().clone(),
+            new_shape.into_boxed_slice(),
+            Device::CPU,
+        )
+        .unwrap();
+        let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(Unsqueeze {
+            input_tensors: Box::new([one.clone()]),
+            axis,
+        })));
+        Arc::new(Mutex::new(Tensor {
+            data: tensor_data,
+            requires_grad: one.lock().unwrap().requires_grad,
+            gradient: None,
+            op,
+        }))
+    }
+
+    pub fn squeeze(one: &SharedTensor<T>, axis: usize) -> SharedTensor<T> {
+        let mut new_shape = one.get_shape().to_vec();
+        assert!(
+            new_shape[axis] == 1,
+            "Cannot squeeze axis {} with size {}",
+            axis,
+            new_shape[axis]
+        );
+        new_shape.remove(axis);
+        // TODO: Device handling
+        let tensor_data = TensorData::new(
+            one.values().clone(),
+            new_shape.into_boxed_slice(),
+            Device::CPU,
+        )
+        .unwrap();
+        let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(Squeeze {
+            input_tensors: Box::new([one.clone()]),
+            axis,
+        })));
+        Arc::new(Mutex::new(Tensor {
+            data: tensor_data,
+            requires_grad: one.lock().unwrap().requires_grad,
+            gradient: None,
+            op,
+        }))
+    }
+
+    pub fn view(one: &SharedTensor<T>, shape: Box<[usize]>) -> SharedTensor<T> {
+        let numel: usize = one.get_shape().iter().product();
+        let new_numel: usize = shape.iter().product();
+        assert!(
+            numel == new_numel,
+            "Cannot view tensor of numel {} as shape with numel {}",
+            numel,
+            new_numel
+        );
+        // TODO: Device handling
+        let tensor_data =
+            TensorData::new(one.values().clone(), shape.clone(), Device::CPU).unwrap();
+
+        let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(View {
+            input_tensors: Box::new([one.clone()]),
+            shape,
+        })));
+
+        Arc::new(Mutex::new(Tensor {
+            data: tensor_data,
+            requires_grad: one.lock().unwrap().requires_grad,
+            gradient: None,
+            op,
+        }))
+    }
+
+    pub fn permute(one: &SharedTensor<T>, reordered_axis: Box<[usize]>) -> SharedTensor<T> {
+        assert!(
+            reordered_axis.len() == one.get_shape().len(),
+            "Reordered axis length must match tensor dimensions."
+        );
+        let mut new_shape = vec![0; one.get_shape().len()];
+        let mut new_stride = vec![0; one.get_shape().len()];
+        for (i, &axis) in reordered_axis.iter().enumerate() {
+            assert!(
+                axis < one.get_shape().len(),
+                "Reordered axis index out of bounds."
+            );
+            new_shape[i] = one.get_shape()[axis];
+            new_stride[i] = one.get_stride()[axis];
+        }
+        assert!(
+            new_shape.iter().product::<usize>() == one.get_shape().iter().product::<usize>(),
+            "Total number of elements must remain the same after permutation."
+        );
+
+        let mut output_values: Vec<T> = vec![T::from(0).unwrap(); new_shape.iter().product()];
+        for out_linear in 0..output_values.len() {
+            let out_multi = Tensor::<T>::linear_to_multi(out_linear, &new_shape);
+            let in_linear: usize = out_multi
+                .iter()
+                .enumerate()
+                .map(|(dim, &idx)| idx * new_stride[dim])
+                .sum();
+            output_values[out_linear] = one.values()[in_linear];
+        }
+
+        // TODO: Device handling
+        let tensor_data =
+            TensorData::new(output_values, new_shape.into_boxed_slice(), Device::CPU).unwrap();
+
+        let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(Permute {
+            input_tensors: Box::new([one.clone()]),
+            reordered_axis,
+        })));
+
+        Arc::new(Mutex::new(Tensor {
+            data: tensor_data,
+            requires_grad: one.lock().unwrap().requires_grad,
+            gradient: None,
+            op,
+        }))
+    }
+
+    pub fn print(&self) {
+        // handling
+        print!("tensor(");
+        let ndim = self.data.shape.len();
+        let mut stack = vec![0; ndim];
+        for idx in 0..self.data.values.len() {
+            let mut multi_idx = vec![0; ndim];
+            let mut residual = idx;
+            for i in (0..ndim).rev() {
+                let dim = self.data.shape[i];
+                multi_idx[i] = residual % dim;
+                residual /= dim;
+            }
+            // Print opening brackets when a new slice along any axis starts
+            for i in 0..ndim {
+                if multi_idx[i] == 0 {
+                    if stack[i] == 0 {
+                        stack[i] = 1;
+                        print!("[");
+                    }
+                }
+            }
+
+            // Print the value
+            print!("{}", self.data.values[idx]);
+
+            // Print closing brackets when a slice along any axis ends
+            for i in (0..ndim).rev() {
+                if multi_idx[i] + 1 == self.data.shape[i] {
+                    if stack[i] == 1 {
+                        stack[i] = 0;
+                        print!("]");
+                    }
+                } else {
+                    print!(", ");
+                    break;
                 }
             }
         }
+        println!(", device={:?})", self.data.device);
     }
 }
 
