@@ -18,8 +18,8 @@ impl<T: TensorElement> OperationStub<T> for Cat<T> {
 
     fn backward(&mut self, upstream: SharedTensor<T>) {
         // Backward implementation for Add operation
-        println!("{:?}", upstream.get_shape());
-        println!("{:?}", self.get_branches());
+        // println!("{:?}", upstream.get_shape());
+        // println!("{:?}", self.get_branches());
         let mut outer_dims = 1;
         let mut inner_dims = 1;
         for i in 0..self.get_branches()[0].get_shape().len() {

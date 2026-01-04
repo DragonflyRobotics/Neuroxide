@@ -19,102 +19,68 @@ extern crate neuroxide;
 // TODO: Enable caching/saving
 // TODO: Add more operations
 fn main() {
-    // let mut pool = Pool::new(CudaDevice::new());
-    // let block1 = pool.malloc(1024).expect("Failed to allocate block1");
-    // let block2 = pool.malloc(2048).expect("Failed to allocate block2");
-    // pool.print();
-    //
-    // pool.free(&block1);
-    // pool.print();
-    //
-    // pool.free(&block2);
-    // pool.print();
-    // // sleep for a while to see the output
-    // let ten_millis = time::Duration::from_millis(5000);
-    // std::thread::sleep(ten_millis);
-    // let x = Tensor::new([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [2usize, 3usize]);
-    // let y = Tensor::new([1.0, 2.0, 3.0], [1usize, 3usize]);
-    // let res = Tensor::cat(&x, &y, 0);
-    // res.backward();
-    // println!("Gradient dy/dx: {:?}", x.get_gradient());
-    // println!("Gradient dy/dy: {:?}", y.get_gradient());
-    //
-    let x = Tensor::new(vec![1.0, 2.0, 3.0], vec![3]); // shape [3]
-    let y = Tensor::new(vec![4.0, 5.0, 6.0], vec![3]); // shape [3]
-    let z = Tensor::new(vec![7.0, 8.0, 9.0, 10.0], vec![4]); // shape [4]
-    let w = Add::forward((&x, &y)); // [5,7,9]
-    let u = Mul::forward((&w, &y)); // Error: shape mismatch
-    let v = Tensor::cat(&u, &z, 0);
-    v.backward();
-    println!("Gradient dv/dx: {:?}", x.get_gradient());
-    println!("Gradient dv/dy: {:?}", y.get_gradient());
-    println!("Gradient dv/dz: {:?}", z.get_gradient());
+    for _ in 0..100000 {
+        // --- Step 1: Create base tensors ---
+        let x = Tensor::new(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let y = Tensor::new(vec![10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0], vec![2, 3]);
 
-    let x = Tensor::new([0, 1, 2, 3, 4, 5, 6, 7], [2usize, 4usize]);
-    let y = Tensor::permute(&x, Box::new([1usize, 0usize]));
-    println!("Permuted Tensor: {:?}", y);
-    y.backward();
-    println!("Gradient dy/dx: {:?}", x.get_gradient());
+        // --- Step 2: Basic arithmetic ---
+        let z1 = Add::forward((&x, &y)); // elementwise add
+        let z2 = Mul::forward((&x, &y)); // elementwise mul
 
-    let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    let shape = vec![4usize, 3usize, 1usize];
-    let tensor = Tensor::new(data.clone(), shape.clone());
-    println!("{:?}", tensor);
-    tensor.lock().unwrap().print();
+        // --- Step 3: Concatenate along axis 0 and 1 ---
+        let cat0 = Tensor::cat(&z1, &z2, 0); // shape: [4, 3]
+        let cat1 = Tensor::cat(&z1, &z2, 1); // shape: [2, 6]
 
-    // x.lock().unwrap().cuda();
-    //
-    // // (x * x)
-    // let x2 = Mul::forward((&x, &x));
-    // // (x * (x + x))
-    // let x_plus_x = Add::forward((&x, &x));
-    // let x_xplusx = Mul::forward((&x, &x_plus_x));
-    // // (x*x + x)
-    // let x2_plus_x = Add::forward((&x2, &x));
-    // // y = (x*x + x) * (x * (x + x))
-    // let y = Mul::forward((&x2_plus_x, &x_xplusx));
-    //
-    // // Trigger backward pass
-    // y.backward();
-    //
-    // println!("Forward result y: {:?}", y);
-    // println!("Gradient dy/dx: {:?}", x.get_gradient());
-}
-fn print_tensor<T: std::fmt::Display>(data: &[T], shape: &[usize]) {
-    let ndim = shape.len();
-    let mut stack = vec![0; ndim];
-    for idx in 0..data.len() {
-        let mut multi_idx = vec![0; ndim];
-        let mut residual = idx;
-        for i in (0..ndim).rev() {
-            let dim = shape[i];
-            multi_idx[i] = residual % dim;
-            residual /= dim;
-        }
-        // Print opening brackets when a new slice along any axis starts
-        for i in 0..ndim {
-            if multi_idx[i] == 0 {
-                if stack[i] == 0 {
-                    stack[i] = 1;
-                    print!("[");
-                }
-            }
-        }
+        // --- Step 4: Slice ---
+        let slice0 = Tensor::slice(
+            &cat0,
+            &[
+                SliceInfo::Range {
+                    start: 1,
+                    end: 3,
+                    step: 1,
+                },
+                SliceInfo::All,
+            ],
+        ); // shape: [2, 3]
+        let slice1 = Tensor::slice(
+            &cat1,
+            &[
+                SliceInfo::All,
+                SliceInfo::Range {
+                    start: 2,
+                    end: 5,
+                    step: 1,
+                },
+            ],
+        ); // shape: [2, 3]
 
-        // Print the value
-        print!("{}", data[idx]);
+        // --- Step 5: View and reshape ---
+        let view0 = Tensor::view(&slice0, vec![3, 2].into_boxed_slice()); // reshaped tensor
+        let view1 = Tensor::view(&slice1, vec![3, 2].into_boxed_slice());
 
-        // Print closing brackets when a slice along any axis ends
-        for i in (0..ndim).rev() {
-            if multi_idx[i] + 1 == shape[i] {
-                if stack[i] == 1 {
-                    stack[i] = 0;
-                    print!("]");
-                }
-            } else {
-                print!(", ");
-                break;
-            }
-        }
+        // --- Step 6: Unsqueeze and squeeze ---
+        let unsq = Tensor::unsqueeze(&view0, 1); // shape: [3,1,2]
+        let sq = Tensor::squeeze(&unsq, 1); // back to shape: [3,2]
+
+        // --- Step 7: Permute ---
+        let perm = Tensor::permute(&sq, vec![1, 0].into_boxed_slice()); // shape: [2,3]
+
+        // --- Step 8: Combine with arithmetic again ---
+        let shift = Tensor::permute(&view1, vec![1, 0].into_boxed_slice()); // shape: [2,3]
+        let final_tensor = Add::forward((&perm, &shift)); // shapes must match [2,3]
+        // final_tensor.lock().unwrap().print();
+
+        // --- Step 9: Backward pass ---
+        final_tensor.backward(); // compute gradients through the entire chain
+
+        // --- Step 10: Print shapes and gradients ---
+        // println!("x shape: {:?}", x.get_shape());
+        // println!("y shape: {:?}", y.get_shape());
+        // println!("final shape: {:?}", final_tensor.get_shape());
+
+        // x.get_gradient().unwrap().lock().unwrap().print();
+        // y.get_gradient().unwrap().lock().unwrap().print();
     }
 }
