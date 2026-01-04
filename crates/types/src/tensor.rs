@@ -16,6 +16,15 @@ pub struct Tensor<T> {
     op: Option<Arc<Mutex<dyn OperationStub<T>>>>,
 }
 
+pub enum SliceInfo {
+    All, // take full axis
+    Range {
+        start: usize,
+        end: usize,
+        step: usize,
+    }, // slice with step
+}
+
 impl<T: TensorElement> Tensor<T> {
     pub fn new<I: ToShapeInputs, V: ToTensorValueInputs<T>>(data: V, shape: I) -> SharedTensor<T> {
         let data = data.into_values();
@@ -148,6 +157,22 @@ impl<T: TensorElement> Tensor<T> {
             gradient: None,
             op,
         }))
+    }
+
+    pub fn slice(one: &SharedTensor<T>, ranges: &[SliceInfo]) -> SharedTensor<T> {
+        let output_shape = one.get_shape().clone();
+        for (i, range) in ranges.iter().enumerate() {
+            match range {
+                SliceInfo::All => {}
+                SliceInfo::Range { start, end, step } => {
+                    let dim_size = output_shape[i];
+                    let slice_size = ((*end - *start) + step - 1) / step;
+                    if *end > dim_size || *start >= *end {
+                        panic!("Slice indices are out of bounds.");
+                    }
+                }
+            }
+        }
     }
 }
 
