@@ -368,6 +368,170 @@ impl<T: TensorElement> Tensor<T> {
         }))
     }
 
+    pub fn broadcast_linear(
+        one: &SharedTensor<T>,
+        other: &SharedTensor<T>,
+    ) -> (SharedTensor<T>, SharedTensor<T>) {
+        let mut shape1 = one.get_shape().to_vec();
+        let mut shape2 = other.get_shape().to_vec();
+        let mut one_result = one.clone();
+        let mut other_result = other.clone();
+        // fill with zeros from left to right
+        let diff = shape1.len() as i32 - shape2.len() as i32;
+        if diff > 0 {
+            for _ in 0..diff {
+                shape2.insert(0, 1);
+                other_result = Tensor::unsqueeze(&other_result, 0);
+            }
+        } else {
+            for _ in 0..-diff {
+                shape1.insert(0, 1);
+                one_result = Tensor::unsqueeze(&one_result, 0);
+            }
+        }
+
+        for index in 0..shape1.len() {
+            if shape1[index] != shape2[index] {
+                if shape1[index] == 1 {
+                    shape1[index] = shape2[index];
+                    let base = one_result.clone();
+                    for _ in 0..(shape2[index]) - 1 {
+                        one_result = Tensor::cat(&one_result, &base, index);
+                    }
+                } else if shape2[index] == 1 {
+                    shape2[index] = shape1[index];
+                    let base = other_result.clone();
+                    for _ in 0..(shape1[index]) - 1 {
+                        other_result = Tensor::cat(&other_result, &base, index);
+                    }
+                } else {
+                    panic!(
+                        "Shapes are not broadcastable: {:?} and {:?}.",
+                        shape1, shape2
+                    );
+                }
+            }
+        }
+        (one_result, other_result)
+    }
+
+    fn mat_dim_broad(
+        one: &SharedTensor<T>,
+        other: &SharedTensor<T>,
+    ) -> (SharedTensor<T>, SharedTensor<T>) {
+        //hi
+        let mut one_result = one.clone();
+        let mut other_result = other.clone();
+        let shape1 = one.get_shape();
+        let shape2 = other.get_shape();
+        let rank1 = shape1.len();
+        let rank2 = shape2.len();
+        let mut mod1 = shape1.to_vec();
+        let mut mod2 = shape2.to_vec();
+        if rank1 == 1 {
+            if rank2 == 1 {
+                // [z] X [z] = [1] -> []
+                if shape1[0] == shape2[0] {
+                    return (one_result, other_result);
+                } else {
+                    panic!(
+                        "Shapes are not aligned for matmul: {:?} and {:?}.",
+                        shape1, shape2
+                    );
+                }
+            } else if rank2 == 2 {
+                // [z] X [z, y] = [1, y] -> [y]
+                if shape1[0] == shape2[0] {
+                    mod1.insert(0, 1);
+                    one_result = Tensor::unsqueeze(&one_result, shape1.len() - 1);
+                    return (one_result, other_result);
+                } else {
+                    panic!(
+                        "Shapes are not aligned for matmul: {:?} and {:?}.",
+                        shape1, shape2
+                    );
+                }
+            }
+        } else if rank1 == 2 {
+            if rank2 == 1 {
+                // [y, z] X [z] = [y, 1] -> [y]
+                if shape1[1] == shape2[0] {
+                    mod2.push(1);
+                    other_result = Tensor::unsqueeze(&other_result, shape2.len());
+                    return (one_result, other_result);
+                } else {
+                    panic!(
+                        "Shapes are not aligned for matmul: {:?} and {:?}.",
+                        shape1, shape2
+                    );
+                }
+            } else if rank2 == 2 {
+                // [y, z] X [z, y] = [y, y] -> []
+                if shape1[1] == shape2[0] {
+                    return (one_result, other_result);
+                } else {
+                    panic!(
+                        "Shapes are not aligned for matmul: {:?} and {:?}.",
+                        shape1, shape2
+                    );
+                }
+            }
+        }
+        panic!(
+            "Shapes are not aligned for matmul: {:?} and {:?}.",
+            shape1, shape2
+        );
+    }
+
+    pub fn broadcast_matmul(
+        one: &SharedTensor<T>,
+        other: &SharedTensor<T>,
+    ) -> (SharedTensor<T>, SharedTensor<T>) {
+        let (mut shape1, mut shape2) = (one.get_shape().to_vec(), other.get_shape().to_vec());
+        let (mut one_result, mut other_result) = Tensor::mat_dim_broad(&one, &other);
+        if shape1.len() <= 2 && shape2.len() <= 2 {
+            return (one_result, other_result);
+        }
+
+        if shape1.len() > shape2.len() {
+            let diff = shape1.len() - shape2.len();
+            for _ in 0..diff {
+                shape2.insert(0, 1);
+                other_result = Tensor::unsqueeze(&other_result, 0);
+            }
+        } else if shape2.len() > shape1.len() {
+            let diff = shape2.len() - shape1.len();
+            for _ in 0..diff {
+                shape1.insert(0, 1);
+                one_result = Tensor::unsqueeze(&one_result, 0);
+            }
+        }
+        assert!(shape1.len() == shape2.len());
+        for index in 0..shape1.len() - 2 {
+            if shape1[index] != shape2[index] {
+                if shape1[index] == 1 {
+                    shape1[index] = shape2[index];
+                    let base = one_result.clone();
+                    for _ in 0..(shape2[index]) - 1 {
+                        one_result = Tensor::cat(&one_result, &base, index);
+                    }
+                } else if shape2[index] == 1 {
+                    shape2[index] = shape1[index];
+                    let base = other_result.clone();
+                    for _ in 0..(shape1[index]) - 1 {
+                        other_result = Tensor::cat(&other_result, &base, index);
+                    }
+                } else {
+                    panic!(
+                        "Shapes are not broadcastable for matmul: {:?} and {:?}.",
+                        shape1, shape2
+                    );
+                }
+            }
+        }
+        (one_result, other_result)
+    }
+
     pub fn print(&self) {
         // handling
         print!("tensor(");
@@ -383,11 +547,9 @@ impl<T: TensorElement> Tensor<T> {
             }
             // Print opening brackets when a new slice along any axis starts
             for i in 0..ndim {
-                if multi_idx[i] == 0 {
-                    if stack[i] == 0 {
-                        stack[i] = 1;
-                        print!("[");
-                    }
+                if multi_idx[i] == 0 && stack[i] == 0 {
+                    stack[i] = 1;
+                    print!("[");
                 }
             }
 
@@ -407,7 +569,10 @@ impl<T: TensorElement> Tensor<T> {
                 }
             }
         }
-        println!(", device={:?})", self.data.device);
+        println!(
+            ", shape={:?}, device={:?})",
+            self.data.shape, self.data.device
+        );
     }
 }
 
