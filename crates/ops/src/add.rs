@@ -48,20 +48,40 @@ impl<T: TensorElement> OperationStub<T> for Add<T> {
                 });
             }
         } else {
-            (a, b) = Tensor::broadcast_linear(&inputs[0], &inputs[1]);
+            // check if inputs are locked
+            let (mut shape1, mut shape2) = (
+                inputs[0].get_shape().clone().to_vec(),
+                inputs[1].get_shape().clone().to_vec(),
+            );
+            let (mut stride1, mut stride2) = (
+                inputs[0].get_stride().clone().to_vec(),
+                inputs[1].get_stride().clone().to_vec(),
+            );
+            Tensor::<T>::broadcast_shapes_linear(
+                &mut shape1,
+                &mut shape2,
+                &mut stride1,
+                &mut stride2,
+            );
+
             result_shape = a.get_shape().clone();
             result_values = vec![T::from(0).unwrap(); result_shape.iter().product()];
             let a_lock = a.lock_ref();
             let b_lock = b.lock_ref();
             let a_values = a_lock.get_values_slice();
             let b_values = b_lock.get_values_slice();
+
             if result_values.len() > 1024 {
                 result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
-                    o.clone_from(&(a_values[i] + b_values[i]));
+                    let a_idx = Tensor::<T>::get_flat_index(i, &shape1, &stride1);
+                    let b_idx = Tensor::<T>::get_flat_index(i, &shape2, &stride2);
+                    o.clone_from(&(a_values[a_idx] + b_values[b_idx]));
                 });
             } else {
-                result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
-                    o.clone_from(&(a_values[i] + b_values[i]));
+                result_values.iter_mut().enumerate().for_each(|(i, o)| {
+                    let a_idx = Tensor::<T>::get_flat_index(i, &shape1, &stride1);
+                    let b_idx = Tensor::<T>::get_flat_index(i, &shape2, &stride2);
+                    o.clone_from(&(a_values[a_idx] + b_values[b_idx]));
                 });
             }
         };

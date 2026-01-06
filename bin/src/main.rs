@@ -86,13 +86,13 @@ fn main() {
     // );
     let iters = 1000;
     let a = Tensor::new(vec![1.0f32; 1024 * 1024], vec![1024, 1024]);
-    let b = Tensor::new(vec![2.0f32; 1024 * 1024], vec![1024, 1024]);
+    let b = Tensor::new(vec![2.0f32; 1024], vec![1, 1024]);
 
     let start = Instant::now();
     for i in 0..iters {
         let c = Add::forward((&a, &b));
-        let step = start.elapsed();
-        println!("Avg time per iter {}: {:?}", i + 1, step / (i + 1) as u32);
+        // let step = start.elapsed();
+        // println!("Avg time per iter {}: {:?}", i + 1, step / (i + 1) as u32);
     }
     let elapsed = start.elapsed();
     println!(

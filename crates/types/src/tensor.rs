@@ -154,11 +154,20 @@ impl<T: TensorElement> Tensor<T> {
         }
 
         {
-            let one_lock = one.lock_ref();
-            let other_lock = other.lock_ref();
-
-            let one_values = one_lock.get_values_slice();
-            let other_values = other_lock.get_values_slice();
+            let one_values;
+            let other_values;
+            let one_lock;
+            let other_lock;
+            if Arc::ptr_eq(one, other) {
+                one_lock = one.lock_ref();
+                one_values = one_lock.get_values_slice();
+                other_values = one_values;
+            } else {
+                one_lock = one.lock_ref();
+                other_lock = other.lock_ref();
+                one_values = one_lock.get_values_slice();
+                other_values = other_lock.get_values_slice();
+            }
 
             for i in 0..outer_dims {
                 let mut starta = 0;
@@ -194,6 +203,57 @@ impl<T: TensorElement> Tensor<T> {
             gradient: None,
             op,
         }))
+    }
+
+    pub fn broadcast_shapes_linear(
+        shape1: &mut Vec<usize>,
+        shape2: &mut Vec<usize>,
+        stride1: &mut Vec<usize>,
+        stride2: &mut Vec<usize>,
+    ) -> Result<(), ()> {
+        let diff = shape1.len() as i32 - shape2.len() as i32;
+        if diff > 0 {
+            for _ in 0..diff {
+                shape2.insert(0, 1);
+                stride2.insert(0, 0);
+            }
+        } else {
+            for _ in 0..-diff {
+                shape1.insert(0, 1);
+                stride1.insert(0, 0);
+            }
+        }
+
+        for index in 0..shape1.len() {
+            if shape1[index] != shape2[index] {
+                if shape1[index] == 1 {
+                    shape1[index] = shape2[index];
+                    stride1[index] = 0;
+                } else if shape2[index] == 1 {
+                    shape2[index] = shape1[index];
+                    stride2[index] = 0;
+                } else {
+                    return Err(());
+                }
+            }
+        }
+        return Ok(());
+    }
+
+    pub fn get_flat_index(flat_idx: usize, shape: &[usize], strides: &[usize]) -> usize {
+        let mut idx = flat_idx;
+        let mut offset = 0;
+        let mut prod: usize = shape.iter().skip(1).product();
+
+        for (i, &dim) in shape.iter().enumerate() {
+            let pos = idx / prod;
+            idx %= prod;
+            offset += pos * strides[i];
+            if i + 1 < shape.len() {
+                prod /= shape[i + 1..].iter().product::<usize>();
+            }
+        }
+        offset
     }
 
     pub fn sum(one: &SharedTensor<T>, axis: usize) -> SharedTensor<T> {
@@ -456,6 +516,9 @@ impl<T: TensorElement> Tensor<T> {
         };
         let mut shape1 = one.get_shape().to_vec();
         let mut shape2 = other.get_shape().to_vec();
+        // if shape1 == shape2 {
+        //     return (one.clone(), other.clone());
+        // }
         let mut one_result = one.clone();
         let mut other_result = other.clone();
 

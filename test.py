@@ -3,7 +3,7 @@ import time
 
 iters = 1000
 a = torch.full((1024, 1024), 1.0, dtype=torch.float32)
-b = torch.full((1024, 1024), 2.0, dtype=torch.float32)
+b = torch.full((1, 1024), 2.0, dtype=torch.float32)
 
 start = time.time()
 for i in range(iters):
