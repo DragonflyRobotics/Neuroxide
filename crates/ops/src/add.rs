@@ -1,9 +1,10 @@
+use std::result;
 use std::sync::{Arc, Mutex};
 
 use types::input::ToTensorInputs;
 use types::op_stub::OperationStub;
 use types::tensor::Tensor;
-use types::tensor_element::{SharedTensor, TensorElement};
+use types::tensor_element::{SharedTensor, TensorElement, TensorHandleExt};
 
 use crate::mul::Mul;
 use crate::op::Operation;
@@ -20,31 +21,35 @@ impl<T: TensorElement> OperationStub<T> for Add<T> {
             panic!("Add operation requires exactly two input tensors.");
         }
 
-        let a = inputs[0].lock().unwrap();
+        let mut a = inputs[0].clone();
+        let mut b = inputs[1].clone();
+
+        let result_shape;
         let result_values = if Arc::ptr_eq(&inputs[0], &inputs[1]) {
-            a.get_values()
+            result_shape = a.lock().unwrap().get_shape().clone();
+            a.values()
                 .iter()
-                .zip(a.get_values().iter())
+                .zip(a.values().iter())
                 .map(|(x, y)| {
                     // Assuming T implements the Add trait
                     *x + *y
                 })
                 .collect::<Vec<T>>()
         } else {
-            let b = inputs[1].lock().unwrap();
-            a.get_values()
+            (a, b) = Tensor::broadcast_linear(&inputs[0], &inputs[1]);
+            result_shape = a.get_shape().clone();
+            a.values()
                 .iter()
-                .zip(b.get_values().iter())
+                .zip(b.values().iter())
                 .map(|(x, y)| {
                     // Assuming T implements the Add trait
                     *x + *y
                 })
                 .collect()
         };
-        let result_shape = a.get_shape().clone();
         let result_tensor = Tensor::new(result_values, result_shape);
         let add = Add {
-            input_tensors: inputs.clone(),
+            input_tensors: Box::new([a, b]),
         };
         result_tensor
             .lock()

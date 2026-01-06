@@ -1,17 +1,15 @@
 import torch
 
-a = torch.arange(1, 13, dtype=torch.float32).reshape(2, 2, 3)  # [2,2,3]
-b = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])  # [3,2]
-c = torch.matmul(a, b)  # [2,2,2]
+a = torch.tensor([1], dtype=torch.float, requires_grad=True)  # [2,3,2]
+b = torch.arange(1, 13, dtype=torch.float32).reshape(2, 3, 2)  # [2,2,3]
 
 
 a.requires_grad = True
-b.requires_grad = True
 a.retain_grad()
+b.requires_grad = True
 b.retain_grad()
 
-c = torch.matmul(a, b)
-print(c)
+c = a * b  # [2,3,2]
 
 grad = torch.ones_like(c)
 c.backward(gradient=grad)  # ✅ works

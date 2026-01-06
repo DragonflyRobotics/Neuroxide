@@ -222,11 +222,17 @@ impl<T: TensorElement> Tensor<T> {
 
         let data = TensorData::new(out, out_shape, Device::CPU).unwrap();
 
+        let op: Option<Arc<Mutex<dyn OperationStub<T>>>> =
+            Some(Arc::new(Mutex::new(crate::axis_sum::AxisSum {
+                input_tensors: Box::new([one.clone()]),
+                axis,
+            })));
+
         Arc::new(Mutex::new(Tensor {
             data,
             requires_grad: one.lock().unwrap().requires_grad,
             gradient: None,
-            op: None,
+            op,
         }))
     }
 

@@ -1,3 +1,4 @@
+pub mod axis_sum;
 pub mod broadcast;
 pub mod cat;
 pub mod device;

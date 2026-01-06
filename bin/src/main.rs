@@ -1,4 +1,6 @@
+use neuroxide::ops::add::Add;
 use neuroxide::ops::matmul::Matmul;
+use neuroxide::ops::mul::Mul;
 use neuroxide::types::op_stub::OperationStub;
 use neuroxide::types::tensor::Tensor;
 use neuroxide::types::tensor_element::TensorHandleExt;
@@ -81,18 +83,14 @@ fn main() {
     //     vec![2, 1, 2, 4],
     // );
 
-    let a = Tensor::new(
-        (1..=24).map(|x| x as f32).collect::<Vec<f32>>(),
-        vec![2, 2, 3],
-    ); // [2,2,3]
+    let a = Tensor::new(vec![1.0], vec![1]); // Scalar tensor
     let b = Tensor::new(
         (1..=12).map(|x| x as f32).collect::<Vec<f32>>(),
         vec![2, 3, 2],
     ); // [2,3,2]
-
-    let res = Matmul::forward((&a, &b));
-    res.lock().unwrap().print();
-    res.backward();
+    let c = Mul::forward((&a, &b)); // Broadcasting add
+    c.lock().unwrap().print(); // [3,2]
+    c.backward();
     a.get_gradient().unwrap().lock().unwrap().print();
     b.get_gradient().unwrap().lock().unwrap().print();
 }
