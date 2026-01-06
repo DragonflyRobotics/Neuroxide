@@ -1,20 +1,20 @@
 import torch
+import time
 
-a = torch.tensor([1], dtype=torch.float, requires_grad=True)  # [2,3,2]
-b = torch.arange(1, 13, dtype=torch.float32).reshape(2, 3, 2)  # [2,2,3]
+iters = 1000
+a = torch.full((1024, 1024), 1.0, dtype=torch.float32)
+b = torch.full((1024, 1024), 2.0, dtype=torch.float32)
 
+start = time.time()
+for i in range(iters):
+    c = a + b  # elementwise add
+end = time.time()
 
-a.requires_grad = True
-a.retain_grad()
-b.requires_grad = True
-b.retain_grad()
+total = end - start
+per_iter = total / iters
 
-c = a * b  # [2,3,2]
+print(f"[Simple Add] iters={iters} total={total:.6f}s per_iter={per_iter:.6f}s")
 
-grad = torch.ones_like(c)
-c.backward(gradient=grad)  # ✅ works
-print("x.grad:", a.grad)
-print("y.grad:", b.grad)
 
 # for _ in range(100000):
 #     x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], requires_grad=True)

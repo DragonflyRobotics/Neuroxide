@@ -1,6 +1,6 @@
-use std::result;
 use std::sync::{Arc, Mutex};
 
+use rayon::prelude::*;
 use types::input::ToTensorInputs;
 use types::op_stub::OperationStub;
 use types::tensor::Tensor;
@@ -32,27 +32,38 @@ impl<T: TensorElement> OperationStub<T> for Add<T> {
         let mut b = inputs[1].clone();
 
         let result_shape;
-        let result_values = if Arc::ptr_eq(&inputs[0], &inputs[1]) {
-            result_shape = a.lock().unwrap().get_shape().clone();
-            a.values()
-                .iter()
-                .zip(a.values().iter())
-                .map(|(x, y)| {
-                    // Assuming T implements the Add trait
-                    *x + *y
-                })
-                .collect::<Vec<T>>()
+        let mut result_values;
+        if Arc::ptr_eq(&inputs[0], &inputs[1]) {
+            result_shape = a.get_shape().clone();
+            result_values = vec![T::from(0).unwrap(); result_shape.iter().product()];
+            let a_lock = a.lock_ref();
+            let a_values = a_lock.get_values();
+            if result_values.len() > 1024 {
+                result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
+                    o.clone_from(&(a_values[i] + a_values[i]));
+                });
+            } else {
+                result_values.iter_mut().enumerate().for_each(|(i, o)| {
+                    o.clone_from(&(a_values[i] + a_values[i]));
+                });
+            }
         } else {
             (a, b) = Tensor::broadcast_linear(&inputs[0], &inputs[1]);
             result_shape = a.get_shape().clone();
-            a.values()
-                .iter()
-                .zip(b.values().iter())
-                .map(|(x, y)| {
-                    // Assuming T implements the Add trait
-                    *x + *y
-                })
-                .collect()
+            result_values = vec![T::from(0).unwrap(); result_shape.iter().product()];
+            let a_lock = a.lock_ref();
+            let b_lock = b.lock_ref();
+            let a_values = a_lock.get_values_slice();
+            let b_values = b_lock.get_values_slice();
+            if result_values.len() > 1024 {
+                result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
+                    o.clone_from(&(a_values[i] + b_values[i]));
+                });
+            } else {
+                result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
+                    o.clone_from(&(a_values[i] + b_values[i]));
+                });
+            }
         };
         let result_tensor = Tensor::new(result_values, result_shape);
         let add = Add {

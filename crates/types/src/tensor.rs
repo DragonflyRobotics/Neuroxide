@@ -1,6 +1,6 @@
 use std::{
     process::id,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use crate::{
@@ -79,6 +79,9 @@ impl<T: TensorElement> Tensor<T> {
     pub fn get_values(&self) -> &Vec<T> {
         &self.data.values
     }
+    pub fn get_values_slice(&self) -> &[T] {
+        self.data.values.as_slice()
+    }
 
     pub fn get_shape(&self) -> Box<[usize]> {
         self.data.shape.clone()
@@ -116,6 +119,10 @@ impl<T: TensorElement> Tensor<T> {
         stride.into_boxed_slice()
     }
 
+    pub fn values_ref(&self) -> &Vec<T> {
+        &self.data.values
+    }
+
     pub fn cat(one: &SharedTensor<T>, other: &SharedTensor<T>, axis: usize) -> SharedTensor<T> {
         if one.get_shape().len() != other.get_shape().len() {
             panic!("Tensors must have the same number of dimensions to concatenate.");
@@ -146,28 +153,37 @@ impl<T: TensorElement> Tensor<T> {
             final_vector.set_len(final_shape.iter().product());
         }
 
-        for i in 0..outer_dims {
-            let mut starta = 0;
-            let mut startb = 0;
-            let mut residual = i;
-            for d in 0..axis {
-                let dim_size = one.get_shape()[d];
-                let idx = residual % dim_size; // index along this dim
-                residual /= dim_size; // update residual for next dim
-                starta += idx * one.get_stride()[d];
-                startb += idx * other.get_stride()[d];
+        {
+            let one_lock = one.lock_ref();
+            let other_lock = other.lock_ref();
+
+            let one_values = one_lock.get_values_slice();
+            let other_values = other_lock.get_values_slice();
+
+            for i in 0..outer_dims {
+                let mut starta = 0;
+                let mut startb = 0;
+                let mut residual = i;
+                for d in 0..axis {
+                    let dim_size = one.get_shape()[d];
+                    let idx = residual % dim_size; // index along this dim
+                    residual /= dim_size; // update residual for next dim
+                    starta += idx * one.get_stride()[d];
+                    startb += idx * other.get_stride()[d];
+                }
+
+                let out_base = i * (self_slab_size + other_slab_size);
+                final_vector[out_base..out_base + self_slab_size]
+                    .copy_from_slice(&one_values[starta..starta + self_slab_size]);
+
+                final_vector
+                    [out_base + self_slab_size..out_base + self_slab_size + other_slab_size]
+                    .copy_from_slice(&other_values[startb..startb + other_slab_size]);
             }
-
-            let out_base = i * (self_slab_size + other_slab_size);
-            final_vector[out_base..out_base + self_slab_size]
-                .copy_from_slice(&one.values()[starta..starta + self_slab_size]);
-
-            final_vector[out_base + self_slab_size..out_base + self_slab_size + other_slab_size]
-                .copy_from_slice(&other.values()[startb..startb + other_slab_size]);
         }
 
         // TODO: Device handling
-        let data = TensorData::new(final_vector.clone(), final_shape.clone(), Device::CPU).unwrap();
+        let data = TensorData::new(final_vector, final_shape, Device::CPU).unwrap();
         let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(Cat {
             input_tensors: Box::new([one.clone(), other.clone()]),
             axis,

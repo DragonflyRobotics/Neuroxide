@@ -1,3 +1,7 @@
+use std::time::Instant;
+
+use neuroxide::ops::add::Add;
+use neuroxide::ops::matmul::Matmul;
 use neuroxide::ops::mul::Mul;
 use neuroxide::ops::op::Operation;
 use neuroxide::types::tensor::Tensor;
@@ -80,15 +84,123 @@ fn main() {
     //     ],
     //     vec![2, 1, 2, 4],
     // );
+    let iters = 1000;
+    let a = Tensor::new(vec![1.0f32; 1024 * 1024], vec![1024, 1024]);
+    let b = Tensor::new(vec![2.0f32; 1024 * 1024], vec![1024, 1024]);
 
-    let b = Tensor::new((1..=12).map(|x| x as f32).collect::<Vec<f32>>(), vec![12]); // [2,3,2]
-    let c = Tensor::slice(
-        &b,
-        &[neuroxide::types::tensor::SliceInfo::Range {
-            start: 2,
-            end: 10,
-            step: 2,
-        }],
-    ); // shape: [4]`
-    c.lock().unwrap().print();
+    let start = Instant::now();
+    for i in 0..iters {
+        let c = Add::forward((&a, &b));
+        let step = start.elapsed();
+        println!("Avg time per iter {}: {:?}", i + 1, step / (i + 1) as u32);
+    }
+    let elapsed = start.elapsed();
+    println!(
+        "[Simple Add] iters={} total={:?} per_iter={:?}",
+        iters,
+        elapsed,
+        elapsed / iters as u32
+    );
+
+    // elementwise_reduction_bench(iters);
+    // matmul_chain_bench(iters);
+    // mixed_graph_bench(iters);
+}
+
+fn elementwise_reduction_bench(iters: usize) {
+    let x = Tensor::new(vec![1.0f32; 1024 * 1024], vec![1024, 1024]);
+    let y = Tensor::new(vec![2.0f32; 1024 * 1024], vec![1024, 1024]);
+
+    // warmup
+    {
+        let z = Add::forward((&x, &y));
+        let w = Mul::forward((&z, &x));
+        let s = Tensor::sum(&w, 1);
+        s.backward();
+    }
+
+    let start = Instant::now();
+
+    for _ in 0..iters {
+        let z1 = Add::forward((&x, &y));
+        let z2 = Mul::forward((&z1, &x));
+        let z3 = Add::forward((&z2, &z1));
+        let z4 = Mul::forward((&z3, &z2));
+        let out = Tensor::sum(&z4, 1); // reduction
+        out.backward();
+    }
+
+    let elapsed = start.elapsed();
+    println!(
+        "[Elementwise+Reduce] iters={} total={:?} per_iter={:?}",
+        iters,
+        elapsed,
+        elapsed / iters as u32
+    );
+}
+
+fn matmul_chain_bench(iters: usize) {
+    let a = Tensor::new(vec![1.0f32; 512 * 512], vec![512, 512]);
+    let b = Tensor::new(vec![2.0f32; 512 * 512], vec![512, 512]);
+
+    // warmup
+    {
+        let c = Matmul::forward((&a, &b));
+        let d = Matmul::forward((&c, &a));
+        d.backward();
+    }
+
+    let start = Instant::now();
+
+    for _ in 0..iters {
+        let c1 = Matmul::forward((&a, &b));
+        let c2 = Matmul::forward((&c1, &a));
+        let c3 = Matmul::forward((&c2, &b));
+        let out = Tensor::sum(&c3, 0);
+        out.backward();
+        println!("Done an iteration");
+    }
+
+    let elapsed = start.elapsed();
+    println!(
+        "[MatMul Chain] iters={} total={:?} per_iter={:?}",
+        iters,
+        elapsed,
+        elapsed / iters as u32
+    );
+}
+
+fn mixed_graph_bench(iters: usize) {
+    let x = Tensor::new(vec![1.0f32; 256 * 256], vec![256, 256]);
+    let w = Tensor::new(vec![0.5f32; 256 * 256], vec![256, 256]);
+    let b = Tensor::new(vec![0.1f32; 256], vec![256]);
+
+    // warmup
+    {
+        let y = Mul::forward((&x, &w));
+        let z = Tensor::sum(&y, 1);
+        let o = Add::forward((&z, &b));
+        o.backward();
+    }
+
+    let start = Instant::now();
+
+    for _ in 0..iters {
+        let y1 = Mul::forward((&x, &w));
+        let y2 = Add::forward((&y1, &x));
+        let y3 = Tensor::permute(&y2, vec![1, 0].into_boxed_slice());
+        let y4 = Tensor::view(&y3, vec![256, 256].into_boxed_slice());
+        let y5 = Mul::forward((&y4, &w));
+        let z = Tensor::sum(&y5, 1);
+        let out = Add::forward((&z, &b));
+        out.backward();
+    }
+
+    let elapsed = start.elapsed();
+    println!(
+        "[Mixed Graph] iters={} total={:?} per_iter={:?}",
+        iters,
+        elapsed,
+        elapsed / iters as u32
+    );
 }
