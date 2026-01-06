@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 
 use crate::op::Operation;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::IntoParallelRefMutIterator;
+use rayon::iter::ParallelIterator;
 use types::{
     input::ToTensorInputs,
     op_stub::OperationStub,
@@ -29,29 +32,60 @@ impl<T: TensorElement> OperationStub<T> for Mul<T> {
     fn forward_cpu(inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
         let mut a = inputs[0].clone();
         let mut b = inputs[1].clone();
-        let result_shape;
 
-        let result_values = if Arc::ptr_eq(&inputs[0], &inputs[1]) {
+        let result_shape;
+        let mut result_values;
+        if Arc::ptr_eq(&inputs[0], &inputs[1]) {
             result_shape = a.get_shape().clone();
-            a.values_clone()
-                .iter()
-                .zip(a.values_clone().iter())
-                .map(|(x, y)| {
-                    // Assuming T implements the Add trait
-                    *x * *y
-                })
-                .collect::<Vec<T>>()
+            result_values = vec![T::from(0).unwrap(); result_shape.iter().product()];
+            let a_lock = a.lock_ref();
+            let a_values = a_lock.get_values();
+            if result_values.len() > 1024 {
+                result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
+                    o.clone_from(&(a_values[i] * a_values[i]));
+                });
+            } else {
+                result_values.iter_mut().enumerate().for_each(|(i, o)| {
+                    o.clone_from(&(a_values[i] * a_values[i]));
+                });
+            }
         } else {
-            (a, b) = Tensor::broadcast_linear(&inputs[0], &inputs[1]);
+            // check if inputs are locked
+            let (mut shape1, mut shape2) = (
+                inputs[0].get_shape().clone().to_vec(),
+                inputs[1].get_shape().clone().to_vec(),
+            );
+            let (mut stride1, mut stride2) = (
+                inputs[0].get_stride().clone().to_vec(),
+                inputs[1].get_stride().clone().to_vec(),
+            );
+            Tensor::<T>::broadcast_shapes_linear(
+                &mut shape1,
+                &mut shape2,
+                &mut stride1,
+                &mut stride2,
+            );
+
             result_shape = a.get_shape().clone();
-            a.values_clone()
-                .iter()
-                .zip(b.values_clone().iter())
-                .map(|(x, y)| {
-                    // Assuming T implements the Add trait
-                    *x * *y
-                })
-                .collect()
+            result_values = vec![T::from(0).unwrap(); result_shape.iter().product()];
+            let a_lock = a.lock_ref();
+            let b_lock = b.lock_ref();
+            let a_values = a_lock.get_values_slice();
+            let b_values = b_lock.get_values_slice();
+
+            if result_values.len() > 1024 {
+                result_values.par_iter_mut().enumerate().for_each(|(i, o)| {
+                    let a_idx = Tensor::<T>::get_flat_index(i, &shape1, &stride1);
+                    let b_idx = Tensor::<T>::get_flat_index(i, &shape2, &stride2);
+                    o.clone_from(&(a_values[a_idx] * b_values[b_idx]));
+                });
+            } else {
+                result_values.iter_mut().enumerate().for_each(|(i, o)| {
+                    let a_idx = Tensor::<T>::get_flat_index(i, &shape1, &stride1);
+                    let b_idx = Tensor::<T>::get_flat_index(i, &shape2, &stride2);
+                    o.clone_from(&(a_values[a_idx] * b_values[b_idx]));
+                });
+            }
         };
         let result_tensor = Tensor::new(result_values, result_shape);
         let add = Mul {
