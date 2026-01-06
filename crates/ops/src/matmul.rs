@@ -1,4 +1,3 @@
-use crate::op::Operation;
 use std::sync::{Arc, Mutex};
 use types::{
     input::ToTensorInputs,
@@ -111,12 +110,12 @@ impl<T: TensorElement> OperationStub<T> for Matmul<T> {
             .into_iter()
             .map(|x| T::from(x).unwrap())
             .collect();
-        println!("{:?}", result_data);
         let mut result_shape = c.get_shape();
         result_shape[result_shape.len() - 1] = d.get_shape()[d.get_shape().len() - 1];
         let result_tensor = Tensor::new(result_data, result_shape);
+        let inputs_broad = [c, d];
         let matmul = Matmul {
-            input_tensors: inputs.clone(),
+            input_tensors: Box::new(inputs_broad),
         };
         result_tensor
             .lock()
@@ -126,7 +125,32 @@ impl<T: TensorElement> OperationStub<T> for Matmul<T> {
     }
 
     fn backward(&mut self, upstream: SharedTensor<T>) {
-        todo!()
+        let a = &self.input_tensors[0];
+        let b = &self.input_tensors[1];
+        let mut reordered_dims = b
+            .get_shape()
+            .iter()
+            .enumerate()
+            .map(|(i, _)| i)
+            .collect::<Vec<usize>>();
+        let len = reordered_dims.len();
+        reordered_dims.swap(len - 1, len - 2);
+        let b_t = Tensor::permute(&b, reordered_dims.into());
+        let mut reordered_dims = a
+            .get_shape()
+            .iter()
+            .enumerate()
+            .map(|(i, _)| i)
+            .collect::<Vec<usize>>();
+        let len = reordered_dims.len();
+        reordered_dims.swap(len - 1, len - 2);
+        let a_t = Tensor::permute(&a, reordered_dims.into());
+        let grad_a = Matmul::forward((&upstream, &b_t));
+        let grad_b = Matmul::forward((&a_t, &upstream));
+        a.lock().unwrap().set_gradient(grad_a);
+        b.lock().unwrap().set_gradient(grad_b);
+        Self::recurse_backward(self.input_tensors[0].clone());
+        Self::recurse_backward(self.input_tensors[1].clone());
     }
 
     fn get_branches(&self) -> Box<[SharedTensor<T>]> {

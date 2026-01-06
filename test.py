@@ -1,5 +1,20 @@
 import torch
 
+x = torch.tensor(
+    [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+    requires_grad=True,
+).reshape(2, 1, 2, 4)
+y = torch.tensor([5.0, 6.0, 7.0, 8.0], requires_grad=True).reshape(4)
+x.retain_grad()
+y.retain_grad()
+
+z = torch.matmul(x, y)
+
+grad = torch.ones_like(z)
+z.backward(gradient=grad)  # ✅ works
+print("x.grad:", x.grad)
+print("y.grad:", y.grad)
+
 for _ in range(100000):
     x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], requires_grad=True)
     y = torch.tensor([[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]], requires_grad=True)

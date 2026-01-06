@@ -511,8 +511,6 @@ impl<T: TensorElement> Tensor<T> {
                 one_result = Tensor::unsqueeze(&one_result, 0);
             }
         }
-        one_result.lock().unwrap().print();
-        other_result.lock().unwrap().print();
         assert!(shape1.len() == shape2.len());
         for index in 0..shape1.len() - 2 {
             if shape1[index] != shape2[index] {
