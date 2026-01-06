@@ -33,9 +33,9 @@ impl<T: TensorElement> OperationStub<T> for Mul<T> {
 
         let result_values = if Arc::ptr_eq(&inputs[0], &inputs[1]) {
             result_shape = a.get_shape().clone();
-            a.values()
+            a.values_clone()
                 .iter()
-                .zip(a.values().iter())
+                .zip(a.values_clone().iter())
                 .map(|(x, y)| {
                     // Assuming T implements the Add trait
                     *x * *y
@@ -44,9 +44,9 @@ impl<T: TensorElement> OperationStub<T> for Mul<T> {
         } else {
             (a, b) = Tensor::broadcast_linear(&inputs[0], &inputs[1]);
             result_shape = a.get_shape().clone();
-            a.values()
+            a.values_clone()
                 .iter()
-                .zip(b.values().iter())
+                .zip(b.values_clone().iter())
                 .map(|(x, y)| {
                     // Assuming T implements the Add trait
                     *x * *y

@@ -158,27 +158,34 @@ impl<T: TensorElement> Tensor<T> {
             let other_values;
             let one_lock;
             let other_lock;
+            let one_stride;
+            let other_stride;
             if Arc::ptr_eq(one, other) {
                 one_lock = one.lock_ref();
                 one_values = one_lock.get_values_slice();
                 other_values = one_values;
+                one_stride = one_lock.get_stride();
+                other_stride = one_stride.clone();
             } else {
                 one_lock = one.lock_ref();
                 other_lock = other.lock_ref();
                 one_values = one_lock.get_values_slice();
                 other_values = other_lock.get_values_slice();
+                one_stride = one_lock.get_stride();
+                other_stride = other_lock.get_stride();
             }
+            let one_shape = one_lock.get_shape();
 
             for i in 0..outer_dims {
                 let mut starta = 0;
                 let mut startb = 0;
                 let mut residual = i;
                 for d in 0..axis {
-                    let dim_size = one.get_shape()[d];
+                    let dim_size = one_shape[d];
                     let idx = residual % dim_size; // index along this dim
                     residual /= dim_size; // update residual for next dim
-                    starta += idx * one.get_stride()[d];
-                    startb += idx * other.get_stride()[d];
+                    starta += idx * one_stride[d];
+                    startb += idx * other_stride[d];
                 }
 
                 let out_base = i * (self_slab_size + other_slab_size);
@@ -280,21 +287,24 @@ impl<T: TensorElement> Tensor<T> {
         let out_len = outer * inner;
         let mut out = vec![T::from(0).unwrap(); out_len];
 
-        let input = one.values();
+        {
+            let input_lock = one.lock_ref();
+            let input_values = input_lock.get_values_slice();
 
-        // Core reduction
-        for o in 0..outer {
-            let in_base = o * reduce * inner;
-            let out_base = o * inner;
+            // Core reduction
+            for o in 0..outer {
+                let in_base = o * reduce * inner;
+                let out_base = o * inner;
 
-            for i in 0..inner {
-                let mut acc = T::from(0).unwrap();
+                for i in 0..inner {
+                    let mut acc = T::from(0).unwrap();
 
-                for r in 0..reduce {
-                    acc = acc + input[in_base + r * inner + i];
+                    for r in 0..reduce {
+                        acc = acc + input_values[in_base + r * inner + i];
+                    }
+
+                    out[out_base + i] = acc;
                 }
-
-                out[out_base + i] = acc;
             }
         }
 
@@ -348,19 +358,24 @@ impl<T: TensorElement> Tensor<T> {
 
         let output_numel: usize = output_shape.iter().product();
         let mut output_values: Vec<T> = Vec::with_capacity(output_numel);
-        for out_linear in 0..output_numel {
-            let out_multi = Tensor::<T>::linear_to_multi(out_linear, &output_shape);
-            let mut in_multi = vec![0; out_multi.len()];
-            for i in 0..out_multi.len() {
-                let ps = &parsed_slice[i];
-                in_multi[i] = ps.start + out_multi[i] * ps.step;
+        {
+            let one_lock = one.lock_ref();
+            let one_values = one_lock.get_values_slice();
+            let one_stride = one_lock.get_stride();
+            for out_linear in 0..output_numel {
+                let out_multi = Tensor::<T>::linear_to_multi(out_linear, &output_shape);
+                let mut in_multi = vec![0; out_multi.len()];
+                for i in 0..out_multi.len() {
+                    let ps = &parsed_slice[i];
+                    in_multi[i] = ps.start + out_multi[i] * ps.step;
+                }
+                let in_linear: usize = in_multi
+                    .iter()
+                    .enumerate()
+                    .map(|(dim, &idx)| idx * one_stride[dim])
+                    .sum();
+                output_values.push(one_values[in_linear]);
             }
-            let in_linear: usize = in_multi
-                .iter()
-                .enumerate()
-                .map(|(dim, &idx)| idx * one.get_stride()[dim])
-                .sum();
-            output_values.push(one.values()[in_linear]);
         }
 
         let tensor_data =
@@ -383,7 +398,7 @@ impl<T: TensorElement> Tensor<T> {
         new_shape.insert(axis, 1);
         // TODO: Device handling
         let tensor_data = TensorData::new(
-            one.values().clone(),
+            one.values_clone(),
             new_shape.into_boxed_slice(),
             Device::CPU,
         )
@@ -411,7 +426,7 @@ impl<T: TensorElement> Tensor<T> {
         new_shape.remove(axis);
         // TODO: Device handling
         let tensor_data = TensorData::new(
-            one.values().clone(),
+            one.values_clone(),
             new_shape.into_boxed_slice(),
             Device::CPU,
         )
@@ -438,8 +453,7 @@ impl<T: TensorElement> Tensor<T> {
             new_numel
         );
         // TODO: Device handling
-        let tensor_data =
-            TensorData::new(one.values().clone(), shape.clone(), Device::CPU).unwrap();
+        let tensor_data = TensorData::new(one.values_clone(), shape.clone(), Device::CPU).unwrap();
 
         let op: Option<Arc<Mutex<dyn OperationStub<T>>>> = Some(Arc::new(Mutex::new(View {
             input_tensors: Box::new([one.clone()]),
@@ -475,14 +489,18 @@ impl<T: TensorElement> Tensor<T> {
         );
 
         let mut output_values: Vec<T> = vec![T::from(0).unwrap(); new_shape.iter().product()];
-        for out_linear in 0..output_values.len() {
-            let out_multi = Tensor::<T>::linear_to_multi(out_linear, &new_shape);
-            let in_linear: usize = out_multi
-                .iter()
-                .enumerate()
-                .map(|(dim, &idx)| idx * new_stride[dim])
-                .sum();
-            output_values[out_linear] = one.values()[in_linear];
+        {
+            let one_lock = one.lock_ref();
+            let one_values = one_lock.get_values_slice();
+            for out_linear in 0..output_values.len() {
+                let out_multi = Tensor::<T>::linear_to_multi(out_linear, &new_shape);
+                let in_linear: usize = out_multi
+                    .iter()
+                    .enumerate()
+                    .map(|(dim, &idx)| idx * new_stride[dim])
+                    .sum();
+                output_values[out_linear] = one_values[in_linear];
+            }
         }
 
         // TODO: Device handling
@@ -588,7 +606,7 @@ impl<T: TensorElement> Tensor<T> {
             data: TensorData {
                 device: Device::CPU,
                 shape: one_result.get_shape(),
-                values: one_result.values(),
+                values: one_result.values_clone(),
                 cuda_ptr: None,
             },
             requires_grad: false,
@@ -600,7 +618,7 @@ impl<T: TensorElement> Tensor<T> {
             data: TensorData {
                 device: Device::CPU,
                 shape: other_result.get_shape(),
-                values: other_result.values(),
+                values: other_result.values_clone(),
                 cuda_ptr: None,
             },
             requires_grad: false,
@@ -820,7 +838,7 @@ impl<T: TensorElement> Tensor<T> {
             data: TensorData {
                 device: Device::CPU,
                 shape: one_result.get_shape(),
-                values: one_result.values(),
+                values: one_result.values_clone(),
                 cuda_ptr: None,
             },
             requires_grad: false,
@@ -832,7 +850,7 @@ impl<T: TensorElement> Tensor<T> {
             data: TensorData {
                 device: Device::CPU,
                 shape: other_result.get_shape(),
-                values: other_result.values(),
+                values: other_result.values_clone(),
                 cuda_ptr: None,
             },
             requires_grad: false,

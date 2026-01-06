@@ -17,7 +17,7 @@ trait_set! {
 pub type SharedTensor<T> = Arc<Mutex<Tensor<T>>>;
 pub trait TensorHandleExt<T> {
     fn lock_ref(&self) -> std::sync::MutexGuard<'_, Tensor<T>>;
-    fn values(&self) -> Vec<T>
+    fn values_clone(&self) -> Vec<T>
     where
         T: Clone;
     fn backward(&self);
@@ -30,7 +30,7 @@ impl<T: TensorElement> TensorHandleExt<T> for Arc<Mutex<Tensor<T>>> {
         self.lock().unwrap()
     }
 
-    fn values(&self) -> Vec<T>
+    fn values_clone(&self) -> Vec<T>
     where
         T: Clone,
     {

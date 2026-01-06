@@ -64,25 +64,35 @@ impl<T: TensorElement> OperationStub<T> for Cat<T> {
             b_vector.set_len(self.get_branches()[1].get_shape().iter().product());
         }
 
-        for i in 0..outer_dims {
-            let mut starta = 0;
-            let mut startb = 0;
-            let mut residual = i;
-            for d in 0..self.axis {
-                let dim_size = self.get_branches()[0].get_shape()[d];
-                let idx = residual % dim_size; // index along this dim
-                residual /= dim_size; // update residual for next dim
-                starta += idx * self.get_branches()[0].get_stride()[d];
-                startb += idx * self.get_branches()[1].get_stride()[d];
-            }
+        {
+            let upstream_lock = upstream.lock_ref();
+            let input0_lock = self.input_tensors[0].lock_ref();
+            let input1_lock = self.input_tensors[1].lock_ref();
+            let input0_shape = input0_lock.get_shape();
+            let input0_stride = input0_lock.get_stride();
+            let input1_stride = input1_lock.get_stride();
+            let upstream_values = upstream_lock.get_values_slice();
 
-            let out_base = i * (self_slab_size + other_slab_size);
-            a_vector[starta..starta + self_slab_size]
-                .copy_from_slice(&upstream.values()[out_base..out_base + self_slab_size]);
-            b_vector[startb..startb + other_slab_size].copy_from_slice(
-                &upstream.values()
-                    [out_base + self_slab_size..out_base + self_slab_size + other_slab_size],
-            );
+            for i in 0..outer_dims {
+                let mut starta = 0;
+                let mut startb = 0;
+                let mut residual = i;
+                for d in 0..self.axis {
+                    let dim_size = input0_shape[d];
+                    let idx = residual % dim_size; // index along this dim
+                    residual /= dim_size; // update residual for next dim
+                    starta += idx * input0_stride[d];
+                    startb += idx * input1_stride[d];
+                }
+
+                let out_base = i * (self_slab_size + other_slab_size);
+                a_vector[starta..starta + self_slab_size]
+                    .copy_from_slice(&upstream_values[out_base..out_base + self_slab_size]);
+                b_vector[startb..startb + other_slab_size].copy_from_slice(
+                    &upstream_values
+                        [out_base + self_slab_size..out_base + self_slab_size + other_slab_size],
+                );
+            }
         }
 
         let a_grad = Tensor::new(a_vector, self.get_branches()[0].get_shape().clone());

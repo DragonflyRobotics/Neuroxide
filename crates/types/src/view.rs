@@ -30,7 +30,7 @@ impl<T: TensorElement> OperationStub<T> for View<T> {
     fn backward(&mut self, upstream: SharedTensor<T>) {
         // Backward implementation for Add operation
         let target_shape = self.input_tensors[0].get_shape().clone();
-        let grad = Tensor::new(upstream.values().clone(), target_shape);
+        let grad = Tensor::new(upstream.values_clone(), target_shape);
         self.input_tensors[0].lock().unwrap().set_gradient(grad);
         Self::recurse_backward(self.input_tensors[0].clone());
     }

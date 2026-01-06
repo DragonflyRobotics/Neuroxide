@@ -32,7 +32,7 @@ impl<T: TensorElement> OperationStub<T> for Unsqueeze<T> {
         let upstream_shape = upstream.get_shape().to_vec();
         let mut target_shape = upstream_shape.clone();
         target_shape.remove(self.axis);
-        let grad = Tensor::new(upstream.values().clone(), target_shape);
+        let grad = Tensor::new(upstream.values_clone(), target_shape);
         self.input_tensors[0].lock().unwrap().set_gradient(grad);
         Self::recurse_backward(self.input_tensors[0].clone());
     }

@@ -113,8 +113,16 @@ impl<T: TensorElement> OperationStub<T> for Matmul<T> {
     }
     fn forward_cpu(inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
         let (c, d) = Tensor::broadcast_matmul(&inputs[0], &inputs[1]);
-        let c_data: Vec<f32> = c.values().iter().map(|x| x.to_f32().unwrap()).collect();
-        let d_data: Vec<f32> = d.values().iter().map(|x| x.to_f32().unwrap()).collect();
+        let c_data: Vec<f32> = c
+            .values_clone()
+            .iter()
+            .map(|x| x.to_f32().unwrap())
+            .collect();
+        let d_data: Vec<f32> = d
+            .values_clone()
+            .iter()
+            .map(|x| x.to_f32().unwrap())
+            .collect();
         let result_data: Vec<T> = batched_sgemm(&c_data, &d_data, &c.get_shape(), &d.get_shape())
             .into_iter()
             .map(|x| T::from(x).unwrap())
