@@ -5,6 +5,7 @@ use mempool::device_allocator::DeviceAllocator;
 use mempool::pool::Pool;
 use mempool::pool::PoolTrait;
 use neuroxide::ops::add::Add;
+use neuroxide::ops::matmul::Matmul;
 use neuroxide::ops::mul::Mul;
 use neuroxide::types::op_stub::OperationStub;
 use neuroxide::types::tensor::SliceInfo;
@@ -12,6 +13,103 @@ use neuroxide::types::tensor::Tensor;
 use neuroxide::types::tensor_element::TensorHandleExt;
 
 extern crate neuroxide;
+
+#[link(name = "openblas")]
+unsafe extern "C" {
+    fn sgemm_(
+        transa: *const i8,
+        transb: *const i8,
+        m: *const i32,
+        n: *const i32,
+        k: *const i32,
+        alpha: *const f32,
+        a: *const f32,
+        lda: *const i32,
+        b: *const f32,
+        ldb: *const i32,
+        beta: *const f32,
+        c: *mut f32,
+        ldc: *const i32,
+    );
+}
+fn sgemm_helper(
+    m: usize,
+    n: usize,
+    k: usize,
+    a_data: &[f32],
+    b_data: &[f32],
+    alpha: f32,
+    beta: f32,
+) -> Vec<f32> {
+    let mut c_data = vec![0f32; m * n];
+
+    unsafe {
+        // 'N' = no transpose
+        let transa = b"T" as *const u8 as *const i8;
+        let transb = b"T" as *const u8 as *const i8;
+
+        sgemm_(
+            transa,
+            transb,
+            &(n as i32),
+            &(m as i32),
+            &(k as i32),
+            &alpha,
+            a_data.as_ptr(),
+            &(k as i32), // leading dimension of A
+            b_data.as_ptr(),
+            &(k as i32), // leading dimension of B
+            &beta,
+            c_data.as_mut_ptr(),
+            &(m as i32), // leading dimension of C
+        );
+    }
+
+    c_data
+}
+
+fn batched_sgemm(
+    a_data: &[f32],
+    b_data: &[f32],
+    shape_a: &[usize], // [..., M, K]
+    shape_b: &[usize], // [..., K, N]
+) -> Vec<f32> {
+    // Determine batch dims
+    let batch_dims: Vec<usize> = if shape_a.len() <= 2 {
+        vec![]
+    } else {
+        shape_a[..shape_a.len() - 2].to_vec()
+    };
+    let batch_size: usize = batch_dims.iter().product::<usize>().max(1);
+
+    let m = shape_a[shape_a.len() - 2];
+    let k = shape_a[shape_a.len() - 1];
+    let n = shape_b[shape_b.len() - 1];
+
+    let mut out_data = vec![0f32; batch_size * m * n];
+
+    for batch_index in 0..batch_size {
+        // Slice offsets
+        let a_start = batch_index * m * k;
+        let a_end = a_start + m * k;
+        let b_start = batch_index * k * n;
+        let b_end = b_start + k * n;
+        let c_start = batch_index * m * n;
+        let c_end = c_start + m * n;
+
+        // Slices for this batch
+        let a_slice = &a_data[a_start..a_end];
+        let b_slice = &b_data[b_start..b_end];
+
+        // Call your existing sgemm_helper
+        let c_slice = sgemm_helper(m, n, k, a_slice, b_slice, 1.0, 0.0);
+
+        // Copy result into output
+        out_data[c_start..c_end].copy_from_slice(&c_slice);
+    }
+
+    out_data
+}
 
 // TODO: Fix benchmarks
 // TODO: Replace NDArray (Maybe)
@@ -84,10 +182,13 @@ fn main() {
     //     // y.get_gradient().unwrap().lock().unwrap().print();
     // }
     //
-    let a = Tensor::new(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], vec![2, 4]);
+    let a = Tensor::new(
+        vec![
+            1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+        ],
+        vec![2, 1, 2, 4],
+    );
     let b = Tensor::new(vec![5.0f32, 6.0, 7.0, 8.0], vec![4]);
-    let (c, d) = Tensor::broadcast_matmul(&a, &b);
-    println!("{:?}, {:?}", c, d);
-    c.lock().unwrap().print();
-    d.lock().unwrap().print();
+    let res = Matmul::forward((&a, &b));
+    res.lock().unwrap().print();
 }

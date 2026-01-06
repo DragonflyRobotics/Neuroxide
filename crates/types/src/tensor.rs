@@ -21,6 +21,7 @@ pub struct Tensor<T> {
     op: Option<Arc<Mutex<dyn OperationStub<T>>>>,
 }
 
+#[derive(Debug)]
 pub enum SliceInfo {
     All, // take full axis
     Range {
@@ -419,15 +420,18 @@ impl<T: TensorElement> Tensor<T> {
         one: &SharedTensor<T>,
         other: &SharedTensor<T>,
     ) -> (SharedTensor<T>, SharedTensor<T>) {
-        //hi
         let mut one_result = one.clone();
         let mut other_result = other.clone();
-        let shape1 = one.get_shape();
-        let shape2 = other.get_shape();
+        let mut shape1 = one_result.get_shape().to_vec();
+        let mut shape2 = other_result.get_shape().to_vec();
+        for _ in 0..(shape1.len() as i32 - 2).max(0) {
+            shape1.remove(0);
+        }
+        for _ in 0..(shape2.len() as i32 - 2).max(0) {
+            shape2.remove(0);
+        }
         let rank1 = shape1.len();
         let rank2 = shape2.len();
-        let mut mod1 = shape1.to_vec();
-        let mut mod2 = shape2.to_vec();
         if rank1 == 1 {
             if rank2 == 1 {
                 // [z] X [z] = [1] -> []
@@ -442,7 +446,6 @@ impl<T: TensorElement> Tensor<T> {
             } else if rank2 == 2 {
                 // [z] X [z, y] = [1, y] -> [y]
                 if shape1[0] == shape2[0] {
-                    mod1.insert(0, 1);
                     one_result = Tensor::unsqueeze(&one_result, shape1.len() - 1);
                     return (one_result, other_result);
                 } else {
@@ -456,7 +459,6 @@ impl<T: TensorElement> Tensor<T> {
             if rank2 == 1 {
                 // [y, z] X [z] = [y, 1] -> [y]
                 if shape1[1] == shape2[0] {
-                    mod2.push(1);
                     other_result = Tensor::unsqueeze(&other_result, shape2.len());
                     return (one_result, other_result);
                 } else {
@@ -487,8 +489,11 @@ impl<T: TensorElement> Tensor<T> {
         one: &SharedTensor<T>,
         other: &SharedTensor<T>,
     ) -> (SharedTensor<T>, SharedTensor<T>) {
-        let (mut shape1, mut shape2) = (one.get_shape().to_vec(), other.get_shape().to_vec());
         let (mut one_result, mut other_result) = Tensor::mat_dim_broad(&one, &other);
+        let (mut shape1, mut shape2) = (
+            one_result.get_shape().to_vec(),
+            other_result.get_shape().to_vec(),
+        );
         if shape1.len() <= 2 && shape2.len() <= 2 {
             return (one_result, other_result);
         }
@@ -506,6 +511,8 @@ impl<T: TensorElement> Tensor<T> {
                 one_result = Tensor::unsqueeze(&one_result, 0);
             }
         }
+        one_result.lock().unwrap().print();
+        other_result.lock().unwrap().print();
         assert!(shape1.len() == shape2.len());
         for index in 0..shape1.len() - 2 {
             if shape1[index] != shape2[index] {

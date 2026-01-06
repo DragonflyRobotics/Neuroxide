@@ -9,21 +9,6 @@ cuda = { workspace = true, optional = true }
 ops = { workspace = true }
 types = { workspace = true }
 
-approx.workspace = true 
-libc.workspace = true
-num.workspace = true 
-ndarray.workspace = true 
-blas-src.workspace = true 
-once_cell.workspace = true 
-petgraph.workspace = true 
-rand.workspace = true 
-pkg-config.workspace = true 
-trait-set.workspace = true 
-cfg-if = "1.0.1"
-
-[build-dependencies]
-cc.workspace = true
-
 [features]
 cuda = ["dep:cuda", "types/cuda", "ops/cuda"]
 default = []

@@ -1,5 +1,3 @@
-extern crate blas_src;
-
 pub mod mempool {
     pub use ::mempool::*;
 }
