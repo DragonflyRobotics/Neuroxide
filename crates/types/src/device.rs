@@ -1,4 +1,5 @@
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum Device {
     CPU,
+    CUDA,
 }

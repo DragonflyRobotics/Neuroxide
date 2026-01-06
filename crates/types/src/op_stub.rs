@@ -3,7 +3,15 @@ use crate::tensor_element::SharedTensor;
 use crate::tensor_element::TensorElement;
 
 pub trait OperationStub<T: TensorElement> {
-    fn forward<I: ToTensorInputs<T>>(inputs: I) -> SharedTensor<T>
+    fn check_forward_inputs<I: ToTensorInputs<T>>(
+        inputs: I,
+    ) -> Result<Box<[SharedTensor<T>]>, String>
+    where
+        Self: Sized;
+    fn forward_cpu(inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T>
+    where
+        Self: Sized;
+    fn forward_cuda(inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T>
     where
         Self: Sized;
     fn backward(&mut self, upstream: SharedTensor<T>);

@@ -2,7 +2,7 @@ use crate::{
     input::ToTensorInputs,
     op_stub::OperationStub,
     tensor::Tensor,
-    tensor_element::{SharedTensor, TensorElement, TensorHandleExt},
+    tensor_element::{SharedTensor, TensorElement},
 };
 
 #[derive(Debug)]
@@ -18,7 +18,18 @@ pub struct BroadcastParams {
 }
 
 impl<T: TensorElement> OperationStub<T> for Broadcast<T> {
-    fn forward<I: ToTensorInputs<T>>(inputs: I) -> SharedTensor<T> {
+    fn check_forward_inputs<I: ToTensorInputs<T>>(
+        inputs: I,
+    ) -> Result<Box<[SharedTensor<T>]>, String>
+    where
+        Self: Sized,
+    {
+        Ok(inputs.into_inputs())
+    }
+    fn forward_cpu(_inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
+        todo!("Not allowed operation");
+    }
+    fn forward_cuda(_inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
         todo!("Not allowed operation");
     }
 

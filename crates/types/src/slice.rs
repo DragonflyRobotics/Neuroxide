@@ -12,7 +12,18 @@ pub struct Slice<T> {
 }
 
 impl<T: TensorElement> OperationStub<T> for Slice<T> {
-    fn forward<I: ToTensorInputs<T>>(inputs: I) -> SharedTensor<T> {
+    fn check_forward_inputs<I: ToTensorInputs<T>>(
+        inputs: I,
+    ) -> Result<Box<[SharedTensor<T>]>, String>
+    where
+        Self: Sized,
+    {
+        Ok(inputs.into_inputs())
+    }
+    fn forward_cpu(_inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
+        todo!("Not allowed operation");
+    }
+    fn forward_cuda(_inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
         todo!("Not allowed operation");
     }
 

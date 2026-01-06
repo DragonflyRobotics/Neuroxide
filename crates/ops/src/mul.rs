@@ -14,12 +14,19 @@ pub struct Mul<T> {
 }
 
 impl<T: TensorElement> OperationStub<T> for Mul<T> {
-    fn forward<I: ToTensorInputs<T>>(inputs: I) -> SharedTensor<T> {
+    fn check_forward_inputs<I: ToTensorInputs<T>>(
+        inputs: I,
+    ) -> Result<Box<[SharedTensor<T>]>, String>
+    where
+        Self: Sized,
+    {
         let inputs = inputs.into_inputs();
         if inputs.len() != 2 {
-            panic!("Add operation requires exactly two input tensors.");
+            return Err("Mul operation requires exactly two input tensors.".to_string());
         }
-
+        Ok(inputs)
+    }
+    fn forward_cpu(inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
         let mut a = inputs[0].clone();
         let mut b = inputs[1].clone();
         let result_shape;
@@ -55,6 +62,10 @@ impl<T: TensorElement> OperationStub<T> for Mul<T> {
             .unwrap()
             .set_op(Arc::new(Mutex::new(add)));
         result_tensor
+    }
+
+    fn forward_cuda(_inputs: Box<[SharedTensor<T>]>) -> SharedTensor<T> {
+        todo!("CUDA not implemented for Mul operation");
     }
 
     fn backward(&mut self, upstream: SharedTensor<T>) {

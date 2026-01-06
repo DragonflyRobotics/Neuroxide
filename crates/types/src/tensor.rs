@@ -38,9 +38,7 @@ pub enum SliceInfo {
 #[derive(Debug)]
 pub(crate) struct ParsedSlice {
     pub(crate) start: usize,
-    pub(crate) end: usize,
     pub(crate) step: usize,
-    pub(crate) length: usize, // length along this axis in the output tensor
 }
 
 impl<T: TensorElement> Tensor<T> {
@@ -88,6 +86,10 @@ impl<T: TensorElement> Tensor<T> {
 
     pub fn get_op(&self) -> Option<Arc<Mutex<dyn OperationStub<T>>>> {
         self.op.clone()
+    }
+
+    pub fn get_device(&self) -> Device {
+        self.data.device.clone()
     }
 
     pub fn backward(&mut self) {
@@ -252,24 +254,17 @@ impl<T: TensorElement> Tensor<T> {
             .iter()
             .enumerate()
             .map(|(i, range)| match range {
-                SliceInfo::All => ParsedSlice {
-                    start: 0,
-                    end: one.get_shape()[i],
-                    step: 1,
-                    length: one.get_shape()[i],
-                },
+                SliceInfo::All => ParsedSlice { start: 0, step: 1 },
                 SliceInfo::Range { start, end, step } => {
                     let dim_size = one.get_shape()[i];
                     if *end > dim_size || *start >= *end {
                         panic!("Slice indices are out of bounds.");
                     }
-                    let slice_size = ((*end - *start) + step - 1) / step;
+                    let slice_size = (*end - *start).div_ceil(*step);
                     output_shape[i] = slice_size;
                     ParsedSlice {
                         start: *start,
-                        end: *end,
                         step: *step,
-                        length: slice_size,
                     }
                 }
             })
@@ -641,7 +636,7 @@ impl<T: TensorElement> Tensor<T> {
         other: &SharedTensor<T>,
     ) -> (SharedTensor<T>, SharedTensor<T>) {
         let (mut one_result, mut other_result, mat1_params, mat2_params) =
-            Tensor::mat_dim_broad(&one, &other);
+            Tensor::mat_dim_broad(one, other);
         let (mut shape1, mut shape2) = (
             one_result.get_shape().to_vec(),
             other_result.get_shape().to_vec(),
