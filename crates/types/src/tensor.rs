@@ -1,6 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    process::id,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
+    broadcast::{Broadcast, BroadcastParams},
     cat::Cat,
     device::Device,
     input::{ToShapeInputs, ToTensorValueInputs},
@@ -171,6 +175,58 @@ impl<T: TensorElement> Tensor<T> {
             requires_grad: one.lock().unwrap().requires_grad || other.lock().unwrap().requires_grad,
             gradient: None,
             op,
+        }))
+    }
+
+    pub fn sum(one: &SharedTensor<T>, axis: usize) -> SharedTensor<T> {
+        let shape = one.get_shape();
+        let ndim = shape.len();
+        assert!(axis < ndim);
+
+        let mut outer = 1usize;
+        let mut inner = 1usize;
+
+        for i in 0..axis {
+            outer *= shape[i];
+        }
+        for i in axis + 1..ndim {
+            inner *= shape[i];
+        }
+
+        let reduce = shape[axis];
+
+        // Output shape (keepdim = true)
+        let mut out_shape = shape.clone();
+        out_shape[axis] = 1;
+
+        let out_len = outer * inner;
+        let mut out = vec![T::from(0).unwrap(); out_len];
+
+        let input = one.values();
+
+        // Core reduction
+        for o in 0..outer {
+            let in_base = o * reduce * inner;
+            let out_base = o * inner;
+
+            for i in 0..inner {
+                let mut acc = T::from(0).unwrap();
+
+                for r in 0..reduce {
+                    acc = acc + input[in_base + r * inner + i];
+                }
+
+                out[out_base + i] = acc;
+            }
+        }
+
+        let data = TensorData::new(out, out_shape, Device::CPU).unwrap();
+
+        Arc::new(Mutex::new(Tensor {
+            data,
+            requires_grad: one.lock().unwrap().requires_grad,
+            gradient: None,
+            op: None,
         }))
     }
 
@@ -373,20 +429,42 @@ impl<T: TensorElement> Tensor<T> {
         one: &SharedTensor<T>,
         other: &SharedTensor<T>,
     ) -> (SharedTensor<T>, SharedTensor<T>) {
+        let mut arg1_params = BroadcastParams {
+            axes_to_sum: vec![],
+            axes_to_remove: vec![],
+        };
+        let mut arg2_params = BroadcastParams {
+            axes_to_sum: vec![],
+            axes_to_remove: vec![],
+        };
         let mut shape1 = one.get_shape().to_vec();
         let mut shape2 = other.get_shape().to_vec();
         let mut one_result = one.clone();
         let mut other_result = other.clone();
+
+        for _ in 0..shape1.len() {
+            arg1_params.axes_to_remove.push(false);
+            arg1_params.axes_to_sum.push(false);
+        }
+        for _ in 0..shape2.len() {
+            arg2_params.axes_to_remove.push(false);
+            arg2_params.axes_to_sum.push(false);
+        }
+
         // fill with zeros from left to right
         let diff = shape1.len() as i32 - shape2.len() as i32;
         if diff > 0 {
             for _ in 0..diff {
                 shape2.insert(0, 1);
+                arg2_params.axes_to_remove.insert(0, true);
+                arg2_params.axes_to_sum.insert(0, false);
                 other_result = Tensor::unsqueeze(&other_result, 0);
             }
         } else {
             for _ in 0..-diff {
                 shape1.insert(0, 1);
+                arg1_params.axes_to_remove.insert(0, true);
+                arg1_params.axes_to_sum.insert(0, false);
                 one_result = Tensor::unsqueeze(&one_result, 0);
             }
         }
@@ -395,12 +473,14 @@ impl<T: TensorElement> Tensor<T> {
             if shape1[index] != shape2[index] {
                 if shape1[index] == 1 {
                     shape1[index] = shape2[index];
+                    arg1_params.axes_to_sum[index] = true;
                     let base = one_result.clone();
                     for _ in 0..(shape2[index]) - 1 {
                         one_result = Tensor::cat(&one_result, &base, index);
                     }
                 } else if shape2[index] == 1 {
                     shape2[index] = shape1[index];
+                    arg2_params.axes_to_sum[index] = true;
                     let base = other_result.clone();
                     for _ in 0..(shape1[index]) - 1 {
                         other_result = Tensor::cat(&other_result, &base, index);
@@ -413,13 +493,60 @@ impl<T: TensorElement> Tensor<T> {
                 }
             }
         }
+
+        let one_op = Broadcast {
+            input_tensors: Box::new([one.clone()]),
+            arg_params: arg1_params.clone(),
+        };
+
+        let other_op = Broadcast {
+            input_tensors: Box::new([other.clone()]),
+            arg_params: arg2_params.clone(),
+        };
+
+        one_result = Arc::new(Mutex::new(Tensor {
+            data: TensorData {
+                device: Device::CPU,
+                shape: one_result.get_shape(),
+                values: one_result.values(),
+                cuda_ptr: None,
+            },
+            requires_grad: false,
+            gradient: None,
+            op: Some(Arc::new(Mutex::new(one_op))),
+        }));
+
+        other_result = Arc::new(Mutex::new(Tensor {
+            data: TensorData {
+                device: Device::CPU,
+                shape: other_result.get_shape(),
+                values: other_result.values(),
+                cuda_ptr: None,
+            },
+            requires_grad: false,
+            gradient: None,
+            op: Some(Arc::new(Mutex::new(other_op))),
+        }));
         (one_result, other_result)
     }
 
     fn mat_dim_broad(
         one: &SharedTensor<T>,
         other: &SharedTensor<T>,
-    ) -> (SharedTensor<T>, SharedTensor<T>) {
+    ) -> (
+        SharedTensor<T>,
+        SharedTensor<T>,
+        BroadcastParams,
+        BroadcastParams,
+    ) {
+        let mut arg1_params = BroadcastParams {
+            axes_to_sum: vec![],
+            axes_to_remove: vec![],
+        };
+        let mut arg2_params = BroadcastParams {
+            axes_to_sum: vec![],
+            axes_to_remove: vec![],
+        };
         let mut one_result = one.clone();
         let mut other_result = other.clone();
         let mut shape1 = one_result.get_shape().to_vec();
@@ -432,11 +559,25 @@ impl<T: TensorElement> Tensor<T> {
         }
         let rank1 = shape1.len();
         let rank2 = shape2.len();
+        for _ in 0..rank1 {
+            arg1_params.axes_to_sum.push(false);
+            arg1_params.axes_to_remove.push(false);
+        }
+        for _ in 0..rank2 {
+            arg2_params.axes_to_sum.push(false);
+            arg2_params.axes_to_remove.push(false);
+        }
         if rank1 == 1 {
             if rank2 == 1 {
                 // [z] X [z] = [1] -> []
                 if shape1[0] == shape2[0] {
-                    return (one_result, other_result);
+                    one_result = Tensor::unsqueeze(&one_result, shape1.len() - 1);
+                    other_result = Tensor::unsqueeze(&other_result, shape2.len());
+                    arg1_params.axes_to_remove.insert(0, true);
+                    arg1_params.axes_to_sum.insert(0, false);
+                    arg2_params.axes_to_remove.push(true);
+                    arg2_params.axes_to_sum.push(false);
+                    return (one_result, other_result, arg1_params, arg2_params);
                 } else {
                     panic!(
                         "Shapes are not aligned for matmul: {:?} and {:?}.",
@@ -446,8 +587,10 @@ impl<T: TensorElement> Tensor<T> {
             } else if rank2 == 2 {
                 // [z] X [z, y] = [1, y] -> [y]
                 if shape1[0] == shape2[0] {
+                    arg1_params.axes_to_remove.insert(0, true);
+                    arg1_params.axes_to_sum.insert(0, false);
                     one_result = Tensor::unsqueeze(&one_result, shape1.len() - 1);
-                    return (one_result, other_result);
+                    return (one_result, other_result, arg1_params, arg2_params);
                 } else {
                     panic!(
                         "Shapes are not aligned for matmul: {:?} and {:?}.",
@@ -459,8 +602,10 @@ impl<T: TensorElement> Tensor<T> {
             if rank2 == 1 {
                 // [y, z] X [z] = [y, 1] -> [y]
                 if shape1[1] == shape2[0] {
+                    arg2_params.axes_to_remove.push(true);
+                    arg2_params.axes_to_sum.push(false);
                     other_result = Tensor::unsqueeze(&other_result, shape2.len());
-                    return (one_result, other_result);
+                    return (one_result, other_result, arg1_params, arg2_params);
                 } else {
                     panic!(
                         "Shapes are not aligned for matmul: {:?} and {:?}.",
@@ -470,7 +615,7 @@ impl<T: TensorElement> Tensor<T> {
             } else if rank2 == 2 {
                 // [y, z] X [z, y] = [y, y] -> []
                 if shape1[1] == shape2[0] {
-                    return (one_result, other_result);
+                    return (one_result, other_result, arg1_params, arg2_params);
                 } else {
                     panic!(
                         "Shapes are not aligned for matmul: {:?} and {:?}.",
@@ -489,7 +634,8 @@ impl<T: TensorElement> Tensor<T> {
         one: &SharedTensor<T>,
         other: &SharedTensor<T>,
     ) -> (SharedTensor<T>, SharedTensor<T>) {
-        let (mut one_result, mut other_result) = Tensor::mat_dim_broad(&one, &other);
+        let (mut one_result, mut other_result, mat1_params, mat2_params) =
+            Tensor::mat_dim_broad(&one, &other);
         let (mut shape1, mut shape2) = (
             one_result.get_shape().to_vec(),
             other_result.get_shape().to_vec(),
@@ -498,16 +644,61 @@ impl<T: TensorElement> Tensor<T> {
             return (one_result, other_result);
         }
 
+        let mut arg1_params = BroadcastParams {
+            axes_to_sum: vec![],
+            axes_to_remove: vec![],
+        };
+        let mut arg2_params = BroadcastParams {
+            axes_to_sum: vec![],
+            axes_to_remove: vec![],
+        };
+        for _ in 0..shape1.len() - 2 {
+            arg1_params.axes_to_sum.push(false);
+            arg1_params.axes_to_remove.push(false);
+        }
+        arg1_params
+            .axes_to_sum
+            .push(mat1_params.axes_to_sum[mat1_params.axes_to_sum.len() - 2]);
+        arg1_params
+            .axes_to_sum
+            .push(mat1_params.axes_to_sum[mat1_params.axes_to_sum.len() - 1]);
+        arg1_params
+            .axes_to_remove
+            .push(mat1_params.axes_to_remove[mat1_params.axes_to_remove.len() - 2]);
+        arg1_params
+            .axes_to_remove
+            .push(mat1_params.axes_to_remove[mat1_params.axes_to_remove.len() - 1]);
+        for _ in 0..shape2.len() - 2 {
+            arg2_params.axes_to_sum.push(false);
+            arg2_params.axes_to_remove.push(false);
+        }
+        arg2_params
+            .axes_to_sum
+            .push(mat2_params.axes_to_sum[mat2_params.axes_to_sum.len() - 2]);
+        arg2_params
+            .axes_to_sum
+            .push(mat2_params.axes_to_sum[mat2_params.axes_to_sum.len() - 1]);
+        arg2_params
+            .axes_to_remove
+            .push(mat2_params.axes_to_remove[mat2_params.axes_to_remove.len() - 2]);
+        arg2_params
+            .axes_to_remove
+            .push(mat2_params.axes_to_remove[mat2_params.axes_to_remove.len() - 1]);
+
         if shape1.len() > shape2.len() {
             let diff = shape1.len() - shape2.len();
             for _ in 0..diff {
                 shape2.insert(0, 1);
+                arg2_params.axes_to_remove.insert(0, true);
+                arg2_params.axes_to_sum.insert(0, false);
                 other_result = Tensor::unsqueeze(&other_result, 0);
             }
         } else if shape2.len() > shape1.len() {
             let diff = shape2.len() - shape1.len();
             for _ in 0..diff {
                 shape1.insert(0, 1);
+                arg1_params.axes_to_remove.insert(0, true);
+                arg1_params.axes_to_sum.insert(0, false);
                 one_result = Tensor::unsqueeze(&one_result, 0);
             }
         }
@@ -516,12 +707,14 @@ impl<T: TensorElement> Tensor<T> {
             if shape1[index] != shape2[index] {
                 if shape1[index] == 1 {
                     shape1[index] = shape2[index];
+                    arg1_params.axes_to_sum[index] = true;
                     let base = one_result.clone();
                     for _ in 0..(shape2[index]) - 1 {
                         one_result = Tensor::cat(&one_result, &base, index);
                     }
                 } else if shape2[index] == 1 {
                     shape2[index] = shape1[index];
+                    arg2_params.axes_to_sum[index] = true;
                     let base = other_result.clone();
                     for _ in 0..(shape1[index]) - 1 {
                         other_result = Tensor::cat(&other_result, &base, index);
@@ -534,6 +727,39 @@ impl<T: TensorElement> Tensor<T> {
                 }
             }
         }
+        let one_op = Broadcast {
+            input_tensors: Box::new([one.clone()]),
+            arg_params: arg1_params.clone(),
+        };
+        let other_op = Broadcast {
+            input_tensors: Box::new([other.clone()]),
+            arg_params: arg2_params.clone(),
+        };
+
+        one_result = Arc::new(Mutex::new(Tensor {
+            data: TensorData {
+                device: Device::CPU,
+                shape: one_result.get_shape(),
+                values: one_result.values(),
+                cuda_ptr: None,
+            },
+            requires_grad: false,
+            gradient: None,
+            op: Some(Arc::new(Mutex::new(one_op))),
+        }));
+
+        other_result = Arc::new(Mutex::new(Tensor {
+            data: TensorData {
+                device: Device::CPU,
+                shape: other_result.get_shape(),
+                values: other_result.values(),
+                cuda_ptr: None,
+            },
+            requires_grad: false,
+            gradient: None,
+            op: Some(Arc::new(Mutex::new(other_op))),
+        }));
+
         (one_result, other_result)
     }
 

@@ -74,13 +74,22 @@ fn main() {
     //     // y.get_gradient().unwrap().lock().unwrap().print();
     // }
     //
+    // let a = Tensor::new(
+    //     vec![
+    //         1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
+    //     ],
+    //     vec![2, 1, 2, 4],
+    // );
+
     let a = Tensor::new(
-        vec![
-            1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
-        ],
-        vec![2, 1, 2, 4],
-    );
-    let b = Tensor::new(vec![5.0f32, 6.0, 7.0, 8.0], vec![4]);
+        (1..=24).map(|x| x as f32).collect::<Vec<f32>>(),
+        vec![2, 2, 3],
+    ); // [2,2,3]
+    let b = Tensor::new(
+        (1..=12).map(|x| x as f32).collect::<Vec<f32>>(),
+        vec![2, 3, 2],
+    ); // [2,3,2]
+
     let res = Matmul::forward((&a, &b));
     res.lock().unwrap().print();
     res.backward();
