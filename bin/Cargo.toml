@@ -7,22 +7,20 @@ edition = "2024"
 name = "neuroxide_main"
 path = "src/main.rs"
 
-[[test]]
-name = "neuroxide_test"
-path = "../test/test.rs"
-
 [[bench]]
 name = "neuroxide_bench"
 path = "../bench/bench.rs"
 
 [dependencies]
-neuroxide = { path = "../crates/neuroxide" }
-mempool = { path = "../crates/mempool" }
+neuroxide = { workspace = true }
+mempool.workspace = true
 approx.workspace = true
 serde_json = "1.0.142"
 serde = "1.0.219"
 rand.workspace = true
 # Other dependencies inherited from workspace
 
+
 [features]
-cuda = [] 
+cuda = ["neuroxide/cuda"]  # propagates feature to crates
+default = []

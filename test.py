@@ -1,49 +1,31 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import time
-import random
 
-# Set device (CPU to match the Rust code)
-device = torch.device("cuda")
 
-weights1 = torch.ones((16, 16), device=device)
-weights2 = torch.ones((16, 16), device=device)
-bias1 = torch.zeros((16,), device=device)
-bias2 = torch.zeros((16,), device=device)
-weights1 = torch.nn.Parameter(weights1)
-weights2 = torch.nn.Parameter(weights2)
-bias1 = torch.nn.Parameter(bias1)
-bias2 = torch.nn.Parameter(bias2)
+x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], requires_grad=True)
+y = torch.tensor([[10.0, 20.0, 30.0], [40.0, 50.0, 60.0]], requires_grad=True)
 
-optimizer = torch.optim.SGD([weights1, weights2, bias1, bias2], lr=0.0000001)
-criterion = nn.MSELoss()
+z1 = x + y
+z2 = x * y
 
-# Training loop
-start_time = time.time()
-for epoch in range(1500):
-    num = random.randint(0, 99)
-    input_tensor = torch.tensor([[float(num)] * 16], dtype=torch.float32, device=device)
-    target_tensor = torch.tensor([[float(num * 2)] * 16], dtype=torch.float32, device=device)
+cat0 = torch.cat([z1, z2], dim=0)
+cat1 = torch.cat([z1, z2], dim=1)
 
-    optimizer.zero_grad()
-    # output = torch.nn.functional.linear(input_tensor, weights1, bias1)
-    # output = torch.nn.functional.linear(output, weights2, bias2)
-    output = torch.matmul(input_tensor, weights1.t()) + bias1
-    output = torch.matmul(output, weights2.t()) + bias2
-    loss = criterion(output, target_tensor)
-    loss.backward()
-    optimizer.step()
+slice0 = cat0[1:3, :]
+slice1 = cat1[:, 2:5]
 
-    # print(f"Epoch: {epoch} Loss: {loss.item()}")
+view0 = slice0.reshape(3, 2)
+view1 = slice1.reshape(3, 2)
 
-# Test output
-test_input = torch.tensor([[4.0] * 16], dtype=torch.float32, device=device)
-with torch.no_grad():
-    test_output = torch.nn.functional.linear(test_input, weights1, bias1)
-    test_output = torch.nn.functional.linear(test_output, weights2, bias2)
-print(test_output)
+unsq = view0.unsqueeze(1)
+sq = unsq.squeeze(1)
 
-end_time = time.time()
-print(f"Time taken: {end_time - start_time:.4f} seconds")
+perm = sq.permute(1, 0)
 
+final_tensor = perm + view1.permute(1, 0)
+print("final_tensor:", final_tensor)
+
+grad = torch.ones_like(y)
+final_tensor.backward(gradient=grad)  # ✅ works
+
+print("x.grad:", x.grad)
+print("y.grad:", y.grad)

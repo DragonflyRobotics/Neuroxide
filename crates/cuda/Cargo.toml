@@ -1,0 +1,20 @@
+[package]
+name = "cuda"
+version = "0.1.0"
+edition = "2024"
+# This tells Cargo to run build.rs when building this crate
+build = "build.rs"
+
+[dependencies]
+# You can depend on tools you need for the build
+mempool.workspace = true
+
+[build-dependencies]
+# Libraries that are only used *inside* build.rs, e.g. codegen helpers
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9.8"
+cc = "1.2.44"
+
+[features]
+default = [] 
+cuda = []
