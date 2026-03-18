@@ -88,7 +88,7 @@ impl PoolTrait for Pool {
             && test_block.borrow().is_free
         {
             self.device.deallocate(test_block.borrow().ptr.clone());
-            println!("Removing segment with head id: {}", test_block.borrow().id);
+            // println!("Removing segment with head id: {}", test_block.borrow().id);
             self.segments
                 .retain(|seg| seg.head.borrow().id != test_block.borrow().id);
             self.heap.remove(&test_block);

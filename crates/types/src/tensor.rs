@@ -187,6 +187,7 @@ impl<T: TensorElement> Tensor<T> {
                     starta += idx * one_stride[d];
                     startb += idx * other_stride[d];
                 }
+                println!("{:?}", residual);
 
                 let out_base = i * (self_slab_size + other_slab_size);
                 final_vector[out_base..out_base + self_slab_size]

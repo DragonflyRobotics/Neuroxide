@@ -12,7 +12,7 @@ impl DeviceAllocator for CudaDevice {
         Box::new(CudaDevice)
     }
     fn allocate(&mut self, size: usize) -> Result<Box<dyn DevicePtr>, String> {
-        println!("Allocating {} bytes on CUDA device", size);
+        // println!("Allocating {} bytes on CUDA device", size);
         unsafe {
             let ptr = allocateDeviceMemory(size);
             if ptr.is_null() {
@@ -24,7 +24,7 @@ impl DeviceAllocator for CudaDevice {
     }
 
     fn deallocate(&mut self, ptr: Box<dyn DevicePtr>) {
-        println!("Deallocating memory on CUDA device");
+        // println!("Deallocating memory on CUDA device");
         unsafe {
             freeDeviceMemory(ptr.as_ptr());
         }
